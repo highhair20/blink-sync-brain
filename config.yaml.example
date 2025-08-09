@@ -1,0 +1,60 @@
+# Blink Sync Brain Configuration Example
+# Copy this file to config.yaml and modify as needed
+
+app_name: "Blink Sync Brain"
+version: "1.0.0"
+debug: false
+
+# Storage Configuration
+storage:
+  virtual_drive_path: "/var/blink_storage/virtual_drive.img"
+  virtual_drive_size_gb: 32
+  video_directory: "/var/blink_storage/videos"
+  results_directory: "/var/blink_storage/results"
+  cleanup_threshold: 80.0  # Percentage
+  retention_days: 30
+  monitor_interval: 300  # seconds
+
+# Video Processing Configuration
+processing:
+  frame_skip: 5  # Process every nth frame
+  monitor_interval: 60  # seconds
+  max_concurrent_videos: 2
+  processing_timeout: 300  # seconds
+  enable_face_recognition: true
+  enable_video_stitching: true
+
+# Face Recognition Configuration
+face_recognition:
+  database_path: "/var/blink_storage/face_database.pkl"
+  confidence_threshold: 0.6
+  tolerance: 0.6
+  min_face_size: 20
+  enable_batch_processing: true
+
+# Notification Configuration
+notifications:
+  enable_notifications: true
+  notification_types:
+    - "unknown_face"
+    - "motion_detected"
+    - "system_alert"
+  email_enabled: false
+  pushbullet_enabled: false
+  webhook_enabled: false
+
+# Network Configuration
+network:
+  host: "0.0.0.0"
+  port: 8080
+  enable_ssl: false
+  ssl_cert_path: null
+  ssl_key_path: null
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"
+  file_path: "/var/log/blink_sync_brain/app.log"
+  max_size_mb: 100
+  backup_count: 5 
