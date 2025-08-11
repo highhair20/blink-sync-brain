@@ -178,6 +178,12 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    sudo apt install -y screen
    ```
 
+1. **Install the Blink Sync Brain application**
+   ```bash
+   cd /opt
+   sudo git clone https://github.com/highhair20/blink-sync-brain.git
+   ```
+
 1. **Install & Configure Samba (for Server Mode)**
    ```bash
    sudo apt install samba -y
