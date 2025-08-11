@@ -1,6 +1,8 @@
 # Blink Sync Brain
 
-A comprehensive Blink camera system enhancement using Raspberry Pi Zero 2 W for local video processing, face recognition, and intelligent storage management.
+Two Raspberry Pi Zero 2 Ws working together:
+- Pi #1 Drive: USB Gadget that presents a virtual USB drive to the Blink Sync Module
+- Pi #2 Processor: Pulls clips, runs face recognition and video processing, and stores results
 
 ## 📖 Documentation
 
@@ -8,16 +10,16 @@ This project contains multiple README files with detailed documentation and visu
 
 ### 🖼️ Visual Documentation
 
-- **[Architecture Overview](./docs/architecture/README.md)** - System architecture diagrams and flow charts
-- **[User Interface Guide](./docs/ui/README.md)** - Screenshots and UI walkthroughs
+- ? **[Architecture Overview](./docs/architecture/README.md)** - System architecture diagrams and flow charts
+- ? **[User Interface Guide](./docs/ui/README.md)** - Screenshots and UI walkthroughs
 - **[Setup Instructions](./docs/setup/README.md)** - Step-by-step setup with annotated screenshots
-- **[API Documentation](./docs/api/README.md)** - API endpoints with request/response examples
-- **[Troubleshooting Guide](./docs/troubleshooting/README.md)** - Common issues with visual solutions
+- ? **[API Documentation](./docs/api/README.md)** - API endpoints with request/response examples
+- ? **[Troubleshooting Guide](./docs/troubleshooting/README.md)** - Common issues with visual solutions
 
 ### 🍓 Raspberry Pi Setup Guides
 
-- **[Complete Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)** - Comprehensive instructions for both Pi boards
-- **[Pi Quick Reference](./docs/setup/pi-quick-reference.md)** - Quick commands and troubleshooting for Pi management
+- **[Complete Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)**
+- **[Pi Quick Reference](./docs/setup/pi-quick-reference.md)**
 
 ### 📋 Quick Start
 
@@ -39,29 +41,25 @@ This project contains multiple README files with detailed documentation and visu
 
 ```
 blink-sync-brain/
+├── configs/
+│   ├── drive.yaml                # Example config for Pi #1 (Drive)
+│   └── processor.yaml            # Example config for Pi #2 (Processor)
+├── scripts/
+│   ├── drive/usb-gadget.sh       # USB gadget config script for Pi #1
+│   └── systemd/
+│       ├── blink-drive.service   # Systemd unit for Pi #1
+│       └── blink-processor.service # Systemd unit for Pi #2
 ├── src/
 │   └── blink_sync_brain/
-│       ├── core/                 # Core system components
-│       │   ├── usb_gadget.py     # USB gadget mode manager
-│       │   ├── video_processor.py # Video processing engine
-│       │   ├── face_recognition.py # Face recognition engine
-│       │   ├── storage_manager.py # Storage management
-│       │   └── notification_service.py # Notification system
-│       ├── config/               # Configuration management
+│       ├── common/               # Shared code
+│       ├── drive/                # Role-specific code for Pi #1 (Drive)
+│       ├── processor/            # Role-specific code for Pi #2 (Processor)
+│       ├── config/               # Settings
 │       ├── models/               # Data models
-│       ├── services/             # Service layer
 │       └── utils/                # Utility functions
-├── docs/
-│   ├── architecture/README.md    # System architecture with diagrams
-│   ├── ui/README.md              # UI screenshots and guides
-│   ├── setup/README.md           # Setup instructions with images
-│   ├── api/README.md             # API documentation with examples
-│   └── troubleshooting/README.md # Troubleshooting with visual aids
-├── tests/                        # Test files
-├── scripts/                      # Utility scripts
-├── requirements.txt              # Python dependencies
-├── pyproject.toml               # Project configuration
-└── README.md                    # This file
+└── docs/
+    └── setup/
+        └── pi-zero-setup.md
 ```
 
 ## 🔗 Quick Links
@@ -72,38 +70,28 @@ blink-sync-brain/
 - **API Reference**: [API Documentation](./docs/api/README.md)
 - **Need Help?**: [Troubleshooting Guide](./docs/troubleshooting/README.md)
 
-## 🍓 Raspberry Pi Setup
+## 🍓 Roles and CLIs
 
-### Pi Zero 2 W #1: USB Gadget Mode
-- **Function**: Acts as virtual USB storage for Blink Sync Module
-- **Setup**: USB gadget mode configuration and virtual drive creation
-- **Storage**: Local video storage with ExFAT formatting
-
-### Pi Zero 2 W #2: Video Processing Hub
-- **Function**: Video analysis, face recognition, and management
-- **Processing**: Face detection, video stitching, and storage management
-- **Network**: WiFi connectivity for accessing shared storage
+- Pi #1 Drive CLI: `blink-drive`
+  - `blink-drive setup|start|stop|status`
+- Pi #2 Processor CLI: `blink-processor`
+  - `blink-processor start|status|process-video <file>`
 
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# On Pi #1 (Drive)
+pip install .[drive]
+sudo cp scripts/systemd/blink-drive.service /etc/systemd/system/
+sudo systemctl enable --now blink-drive
 
-# Setup USB gadget mode (Pi #1)
-blink-sync-brain setup usb-gadget
+# On Pi #2 (Processor)
+pip install .[processor]
+sudo cp scripts/systemd/blink-processor.service /etc/systemd/system/
+sudo systemctl enable --now blink-processor
 
-# Setup face recognition database (Pi #2)
-blink-sync-brain setup face-database
-
-# Start the complete system
-blink-sync-brain start
-
-# Process a single video
-blink-sync-brain process-video /path/to/video.mp4
-
-# Check system status
-blink-sync-brain status
+# Ad-hoc processing on Pi #2
+blink-processor process-video /path/to/video.mp4 --output-dir /var/blink_storage/results
 ```
 
 ## 📝 Contributing

@@ -1,0 +1,10 @@
+storage:
+  virtual_drive_path: "/var/blink_storage/virtual_drive.img"
+  virtual_drive_size_gb: 32
+  cleanup_threshold: 85.0
+  retention_days: 30
+  monitor_interval: 300
+
+logging:
+  level: "INFO"
+

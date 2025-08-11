@@ -1,0 +1,15 @@
+storage:
+  video_directory: "/var/blink_storage/videos"
+  results_directory: "/var/blink_storage/results"
+
+processing:
+  frame_skip: 3
+  max_concurrent_videos: 1
+
+face_recognition:
+  database_path: "/var/blink_storage/face_database.pkl"
+  confidence_threshold: 0.7
+
+logging:
+  level: "INFO"
+

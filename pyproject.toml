@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "blink-sync-brain"
-version = "1.0.0"
-description = "Blink camera system enhancement using Raspberry Pi Zero 2 W for local video processing and face recognition"
+version = "1.1.0"
+description = "Blink camera system with two-role layout: Drive (USB gadget) and Processor (video/face)."
 authors = [
     {name = "Your Name", email = "your.email@example.com"}
 ]
@@ -27,30 +27,27 @@ classifiers = [
 ]
 
 dependencies = [
-    "opencv-python>=4.8.0",
+    "pyyaml>=6.0.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=23.1.0",
+    "psutil>=5.9.0"
+]
+
+[project.optional-dependencies]
+drive = [
+    "pyusb>=1.2.0"
+]
+processor = [
+    "opencv-python-headless>=4.8.0",
     "face-recognition>=1.3.0",
     "numpy>=1.24.0",
     "Pillow>=10.0.0",
     "ffmpeg-python>=0.2.0",
     "moviepy>=1.0.3",
-    "requests>=2.31.0",
-    "websockets>=11.0.0",
-    "aiohttp>=3.8.0",
-    "psutil>=5.9.0",
-    "pyyaml>=6.0.0",
-    "python-dotenv>=1.0.0",
-    "structlog>=23.1.0",
-    "RPi.GPIO>=0.7.0",
-    "pyusb>=1.2.0",
-    "pushbullet.py>=0.12.0",
-    "scikit-image>=0.21.0",
     "scipy>=1.11.0",
-    "scikit-learn>=1.3.0",
-    "tensorflow-lite>=2.13.0",
-    "prometheus-client>=0.17.0",
+    "scikit-image>=0.21.0",
+    "scikit-learn>=1.3.0"
 ]
-
-[project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
@@ -61,7 +58,8 @@ dev = [
 ]
 
 [project.scripts]
-blink-sync-brain = "blink_sync_brain.main:main"
+blink-drive = "blink_sync_brain.drive.main:main"
+blink-processor = "blink_sync_brain.processor.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

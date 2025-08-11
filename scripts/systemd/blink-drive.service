@@ -1,0 +1,12 @@
+[Unit]
+Description=Blink Drive (USB Gadget) Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env blink-drive start --config /etc/blink-sync-brain/config.yaml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+

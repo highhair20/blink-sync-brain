@@ -8,8 +8,8 @@ This guide provides detailed instructions for setting up both Raspberry Pi Zero 
 
 The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
 
-- **Pi Zero 2 W Keeper**: USB Gadget Mode - Acts as virtual USB storage for Blink Sync Module
-- **Pi Zero 2 W Guard**: Video Processing Hub - Handles video analysis and face recognition
+- **Pi Zero 2 W Drive**: USB Gadget Mode - Acts as virtual USB storage for Blink Sync Module
+- **Pi Zero 2 W Processor**: Video Processing Hub - Handles video analysis and face recognition
 
 ## 🛒 Hardware Requirements
 
@@ -18,9 +18,9 @@ The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
 - **Raspberry Pi Zero 2 W** (2 units)
 - **MicroSD Cards** (64GB+ recommended, Class 10 or higher)
 - **Power Supplies** (5V/2.5A Micro USB power supplies)
-- **USB-A to Micro USB cables** (for initial setup - keyboard)
-- **Micro HDMI to HDMI cables** (for initial setup - monitor)
-- **USB keyboard** (for initial setup)
+- **USB-A to Micro USB cables** (optional, for keyboard)
+- **Micro HDMI to HDMI cables** (optional, for monitor)
+- **USB keyboard** (optional)
 
 ### Additional for Pi Zero 2 W Storage:
 - **USB-A to Micro USB cable** (to connect to Blink Sync Module)
@@ -153,20 +153,20 @@ The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
 
    Insert the Micro SD card in to your Pi and power it up. Wait a couple of minutes for the LED to stop flashing. Now remove the power cable and reinsert it. This reboot process is required for the hostname to register. At this point you can SSH into the pi using the hostname.
    ```
-   ssh pi@brainstorage.local
+   ssh pi@braindrive.local
    ```
 
 1. **Repeat**
 
-   Repeat the steps in this section for the other Raspberry Pi 2 W. 
+   Repeat the steps in this section for the Raspberry Pi 2 W Processor. 
 
-## ✨ Configure USB Gadget Mode for Pi Smart Drive
+## ✨ Configure USB Gadget Mode for Brain Drive
 
-Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. It is controlled by Brain Processor and switches between "Storage Mode" (for Blink) and "Server Mode" (for Brain Processor).
+Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by Brain Processor and switches between "Storage Mode" (for Blink) and "Server Mode" (for Brain Processor).
 
 1. **Connect to the Pi**
 
-   SSH into the Pi Storage that will be used as a USB drive.
+   SSH into the Brain Drive that will be used as a USB drive.
    ```bash
    ssh pi@braindrive.local
    ```
@@ -187,17 +187,6 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
    sudo nano /etc/samba/smb.conf
    ```
 
-1. **Create the Virtual Storage**
-
-   Create the large file that will act as the  flash drive's storage.
-   ```bash
-   # Create a 32GB file. This will take some time so running it in a screen will help in case your ssh session gets interupted.
-   screen
-   dd if=/dev/zero of=/home/pi/brain_drive.img bs=1M count=32768 status=progress
-   # Format the file with the FAT32 filesystem
-   sudo mkfs.vfat /home/pi/brain_drive.img
-   ```
-
    Add this share definition to the very bottom of the file:
    ```bash
    [BlinkClips]
@@ -209,6 +198,16 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
    ```
 
    Save the file and restart Samba: ```sudo systemctl restart smbd```.
+
+1. **Create the Virtual Storage**
+
+   Create the large file that will act as the flash drive's storage. This will take some time so running it in a screen will help in case your ssh session gets interupted.
+   ```bash
+   screen
+   dd if=/dev/zero of=/home/pi/brain_drive.img bs=1M count=32768 status=progress
+   # Format the file with the FAT32 filesystem
+   sudo mkfs.vfat /home/pi/brain_drive.img
+   ```
 
 1. **Enable USB Gadget Mode**
    ```bash
@@ -240,56 +239,11 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
    g_mass_storage
    ```
 
-1. **Configure USB Gadget Service**
+1. **Install USB Gadget Script**
    ```bash
-   # Create USB gadget configuration
    sudo mkdir -p /opt/blink-sync-brain
-   sudo nano /opt/blink-sync-brain/usb-gadget.sh
-   ```
-
-   Add this script:
-   ```bash
-   #!/bin/bash
-   
-   # USB Gadget Configuration for Blink Sync Brain
-   
-   # Create gadget directory
-   mkdir -p /sys/kernel/config/usb_gadget/blink_storage
-   cd /sys/kernel/config/usb_gadget/blink_storage
-   
-   # Set USB device properties
-   echo 0x1d6b > idVendor
-   echo 0x0104 > idProduct
-   echo 0x0100 > bcdDevice
-   echo 0x0200 > bcdUSB
-   
-   # Create English strings
-   mkdir -p strings/0x409
-   echo "BLINK_STORAGE_001" > strings/0x409/serialnumber
-   echo "Blink Storage Device" > strings/0x409/product
-   echo "Blink Sync Brain" > strings/0x409/manufacturer
-   
-   # Create configuration
-   mkdir -p configs/c.1/strings/0x409
-   echo "Blink Storage Configuration" > configs/c.1/strings/0x409/configuration
-   echo 250 > configs/c.1/MaxPower
-   
-   # Create mass storage function
-   mkdir -p functions/mass_storage.usb0
-   echo 1 > functions/mass_storage.usb0/stall
-   echo 0 > functions/mass_storage.usb0/lun.0/cdrom
-   echo 0 > functions/mass_storage.usb0/lun.0/ro
-   echo 0 > functions/mass_storage.usb0/lun.0/nofua
-   echo 1 > functions/mass_storage.usb0/lun.0/removable
-   
-   # Set the virtual drive file
-   echo "/var/blink_storage/virtual_drive.img" > functions/mass_storage.usb0/lun.0/file
-   
-   # Link function to configuration
-   ln -s functions/mass_storage.usb0 configs/c.1/
-   
-   # Enable the gadget
-   echo "20980000.usb" > UDC
+   sudo cp /opt/blink-sync-brain-repo/scripts/drive/usb-gadget.sh /opt/blink-sync-brain/usb-gadget.sh
+   sudo chmod +x /opt/blink-sync-brain/usb-gadget.sh
    ```
 
 5. **Make the Script Executable**
@@ -299,28 +253,14 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
 
 6. **Create Systemd Service**
    ```bash
-   sudo nano /etc/systemd/system/blink-usb-gadget.service
+   sudo cp /opt/blink-sync-brain-repo/scripts/systemd/blink-drive.service /etc/systemd/system/
    ```
 
-   Add this service:
-   ```ini
-   [Unit]
-   Description=Blink USB Gadget Service
-   After=network.target
-   
-   [Service]
-   Type=oneshot
-   ExecStart=/opt/blink-sync-brain/usb-gadget.sh
-   RemainAfterExit=yes
-   
-   [Install]
-   WantedBy=multi-user.target
-   ```
+   The service will invoke `blink-drive start` using `/etc/blink-sync-brain/config.yaml`.
 
 7. **Enable and Start the Service**
    ```bash
-   sudo systemctl enable blink-usb-gadget.service
-   sudo systemctl start blink-usb-gadget.service
+   sudo systemctl enable --now blink-drive
    ```
 
 8. **Reboot**
@@ -355,8 +295,13 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
    sudo chown pi:pi /var/blink_storage
    ```
 
-5. **Test USB Gadget Mode**
+5. **Install Python role and Test USB Gadget Mode**
    ```bash
+   # Install minimal role
+   pip install .[drive]
+   sudo mkdir -p /etc/blink-sync-brain
+   sudo cp configs/drive.yaml /etc/blink-sync-brain/config.yaml
+
    # Check if the gadget is active
    ls /sys/kernel/config/usb_gadget/blink_storage/
    
@@ -399,7 +344,7 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
    sudo apt install -y libgtk-3-dev libatlas-base-dev gfortran
    ```
 
-### Step 4: Install Blink Sync Brain
+### Step 4: Install Blink Sync Brain (Pi #2 Processor)
 
 1. **Clone the Repository**
    ```bash
@@ -410,7 +355,7 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
 
 2. **Install Python Dependencies**
    ```bash
-   sudo pip3 install -r requirements.txt
+   pip install .[processor]
    ```
 
 3. **Create Configuration**
@@ -484,8 +429,8 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
 
 2. **Test Face Recognition**
    ```bash
-   # Test with a sample image
-   blink-sync-brain process-video /path/to/test_video.mp4
+   # Test with a sample video
+   blink-processor process-video /path/to/test_video.mp4 --output-dir /var/blink_storage/results
    ```
 
 ## 🔧 System Integration
@@ -529,7 +474,7 @@ Brain Drive (The Smart Drive): Emulates a USB Flash Drive for the Blink Module. 
        for video in /var/blink_storage/videos/*.mp4; do
            if [ -f "$video" ]; then
                echo "Processing: $video"
-               blink-sync-brain process-video "$video"
+                blink-processor process-video "$video"
                mv "$video" /var/blink_storage/processed/
            fi
        done

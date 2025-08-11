@@ -1,0 +1,12 @@
+[Unit]
+Description=Blink Processor (Video/Face) Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env blink-processor start --config /etc/blink-sync-brain/config.yaml
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
