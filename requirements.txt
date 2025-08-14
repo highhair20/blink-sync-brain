@@ -40,7 +40,6 @@ pyusb==1.2.1
 
 # Notification services
 pushbullet.py==0.12.0
-smtplib2==0.2.1
 
 # Image processing
 scikit-image==0.21.0
