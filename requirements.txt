@@ -14,7 +14,6 @@ websockets==11.0.3
 aiohttp==3.8.6
 
 # Database and storage
-sqlite3
 psutil==5.9.5
 
 # Configuration and logging

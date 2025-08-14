@@ -182,6 +182,11 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    ```bash
    cd /opt
    sudo git clone https://github.com/highhair20/blink-sync-brain.git
+   # Install Dependencies
+   cd blink-sync-brain
+   sudo python -m venv --system-site-packages env
+   source env/bin/activate
+   sudo ./env/bin/pip install -r requirements.txt
    ```
 
 1. **Install & Configure Samba (for Server Mode)**
@@ -228,6 +233,9 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    sudo reboot
    ```
 
+1. **Initial State**
+   
+   Run the script to put the Brain Drive into storage mode for the first time.
 
 
 
