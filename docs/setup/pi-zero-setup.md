@@ -176,6 +176,7 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    sudo apt update && sudo apt upgrade -y
    sudo apt install -y git python3 python3-pip
    sudo apt install -y screen
+   sudo apt install -y cmake libboost-all-dev
    ```
 
 1. **Install the Blink Sync Brain application**
@@ -186,6 +187,8 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    cd blink-sync-brain
    sudo python -m venv --system-site-packages env
    source env/bin/activate
+   # install may take some time. I recommend running this in screen.
+   screen
    sudo ./env/bin/pip install -r requirements.txt
    ```
 
