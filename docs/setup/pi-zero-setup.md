@@ -58,15 +58,15 @@ The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
 
    Click 'CHOOSE OS'.
    <div align="center">
-      <img src="images/01_setup_pi.png" alt="Raspberry Pi Imager App" width="600" />
+      <img src="images/03_setup_pi.png" alt="Raspberry Pi Imager App" width="600" />
    </div>
    For our purposes we do not want to install the default Raspberry Pi OS. We want to go for something lighter. Select 'Raspberry Pi OS (other)'
    <div align="center">
-      <img src="images/03_setup_pi.png" alt="Flashing microSD card with Raspberry Pi OS" width="600" />
+      <img src="images/04_setup_pi.png" alt="Flashing microSD card with Raspberry Pi OS" width="600" />
    </div>
    Select 'Raspberry Pi OS Lite (64-bit)'. Make sure to select the 'no desktop' version. This is a headless installation.
    <div align="center">
-      <img src="images/04_setup_pi.png" alt="Creating user configuration file" width="600" />
+      <img src="images/05_setup_pi.png" alt="Creating user configuration file" width="600" />
    </div>
 
 
@@ -74,45 +74,55 @@ The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
 
    Click 'CHOOSE STORAGE'.
    <div align="center">
-      <img src="images/01_setup_pi.png" alt="Raspberry Pi Imager App" width="600" />
+      <img src="images/06_setup_pi.png" alt="Raspberry Pi Imager App" width="600" />
    </div>
    Select the storage device you with to format.
    
    **Note:** Choose carefully as this process will erase the selected drive.
    <div align="center">
-      <img src="images/05_setup_pi.png" alt="Enabling SSH access" width="600" />
+      <img src="images/07_setup_pi.png" alt="Enabling SSH access" width="600" />
    </div>
 
 1. **Customize Settings**
 
-   Click 'EDIT SETTINGS'.
-   <div align="center">
-      <img src="images/06_setup_pi.png" alt="Enabling SSH access" width="600" />
-   </div>
-   Under the 'General' tab set the hostname, username and password, Wifi settings and locale.
-   <div align="center">
-      <img src="images/07_setup_pi.png" alt="Enabling SSH access" width="600" />
-   </div>
+   Click 'NEXT'.
    <div align="center">
       <img src="images/08_setup_pi.png" alt="Enabling SSH access" width="600" />
    </div>
-   Select the 'Services' tab and click 'Enable SSH' and 'Use password authentication'.
+
+   Click 'EDIT SETTINGS'.
    <div align="center">
       <img src="images/09_setup_pi.png" alt="Enabling SSH access" width="600" />
    </div>
-   Click 'Save'.
-
-1. **Write the OS to the SD Card**
-
-   You are now back at the main screen. Click 'Next'. This will begin the process of overwriting your Micro SD card with the Raspberry Pi OS. 
+   Under the 'General' tab set the hostname, username and password, Wifi settings and locale.
    <div align="center">
       <img src="images/10_setup_pi.png" alt="Enabling SSH access" width="600" />
    </div>
-   Once the 'Write Successful' popup is displayed click 'CONTINUE'. You can now remove the SD card from your Mac.
    <div align="center">
       <img src="images/11_setup_pi.png" alt="Enabling SSH access" width="600" />
    </div>
+   Select the 'Services' tab and click 'Enable SSH' and 'Use password authentication'.
+   <div align="center">
+      <img src="images/12_setup_pi.png" alt="Enabling SSH access" width="600" />
+   </div>
+
+   Click 'Save'.
+
+1. **Write the OS to the SD Card**
+   You should not see the popup asking "Would you like to apply OS customization settings?" Click "YES" and then "YES" again at the following Warning screen.
+   <div align="center">
+      <img src="images/09_setup_pi.png" alt="Enabling SSH access" width="600" />
+   </div>
+
+   You are now back at the main screen. Click 'Next'. This will begin the process of overwriting your Micro SD card with the Raspberry Pi OS. 
+   Once the 'Write Successful' popup is displayed click 'CONTINUE'. 
+   <div align="center">
+      <img src="images/13_setup_pi.png" alt="Enabling SSH access" width="600" />
+   </div>
+   You can now remove the SD card from your Mac.
+
    
+
 1. **Fix WiFi configuration**
 
    Remove and reinsert the Micro SD card. From the command line edit the ```firstrun.sh``` file.
@@ -156,6 +166,31 @@ The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
    ssh pi@braindrive.local
    ```
 
+1. **Reclaim the full SSD capacity**
+   
+   The Raspberry Pi Imager tool copies a partition image of a fixed size, leaving the rest of the SSD as unallocated space. In our case we have a 64GB SSD card. To verify that the full capacity of the SSD is not available plug the card reader into your computer and run the following:
+   ```
+   df -H
+   ```
+   You should see something like:
+   ```
+   Filesystem      Size  Used Avail Use% Mounted on
+   /dev/mmcblk0p1  535M   71M  465M  14% /boot/firmware
+   ```
+   Notice the Size shows 535M. To reclaim the full SSD capacity run
+   ```
+   sudo raspi-config
+   ```
+   Go to Advanced Options and select Expand Filesystem.
+   Follow the on-screen instructions to expand the partition to use all available space.
+   Reboot your Raspberry Pi when prompted.
+
+   Now verify the full capacity of the SSD is available. 
+   ```
+   sudo fdisk -l
+   ```
+
+
 1. **Repeat**
 
    Repeat the steps in this section for the Raspberry Pi 2 W Processor. 
@@ -183,13 +218,14 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    ```bash
    cd /opt
    sudo git clone https://github.com/highhair20/blink-sync-brain.git
-   # Install Dependencies
+   # Install Dependencies (Drive Pi - Minimal)
    cd blink-sync-brain
    sudo python -m venv --system-site-packages env
    source env/bin/activate
+   # Install minimal dependencies for drive functionality
    # install may take some time. I recommend running this in screen.
    screen
-   sudo ./env/bin/pip install -r requirements.txt
+   sudo ./env/bin/pip install -r requirements-drive.txt
    ```
 
 1. **Install & Configure Samba (for Server Mode)**
@@ -215,7 +251,7 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
 
 1. **Create the Virtual Storage**
 
-   Create the large file that will act as the flash drive's storage. This will take some time so running it in a screen will help in case your ssh session gets interupted.
+   Create the large file that will act as the flash drive's storage. This will take some time so running it in a ```screen``` will help in case your ssh session gets interupted.
    ```bash
    screen
    dd if=/dev/zero of=/home/pi/brain_drive.img bs=1M count=32768 status=progress
@@ -281,9 +317,9 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    ```
 
 8. **Reboot**
-  ```bash
-  sudo reboot
-  ```
+   ```bash
+   sudo reboot
+   ```
 
 <!--
 ### Step 4: Install Blink Sync Brain
@@ -372,7 +408,11 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
 
 2. **Install Python Dependencies**
    ```bash
-   pip install .[processor]
+   # Install full dependencies for video processing and face recognition
+   pip install -r requirements-processor.txt
+   
+   # Alternative: Install as package with processor extras
+   # pip install .[processor]
    ```
 
 3. **Create Configuration**
