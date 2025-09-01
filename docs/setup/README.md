@@ -2,11 +2,14 @@
 
 This guide covers installing and operating the two-role layout: Pi #1 Drive (USB Gadget) and Pi #2 Processor (video/face).
 
-## 🍓 Raspberry Pi Zero 2 W Setup
 
-Two Raspberry Pi Zero 2 W boards:
-- Pi #1 Drive: USB Gadget exposed to Blink Sync Module
-- Pi #2 Processor: Video processing and face recognition
+## 📋 Overview
+
+The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
+
+- **Pi Zero 2 W Drive**: USB Gadget Mode - Acts as virtual USB storage for Blink Sync Module
+- **Pi Zero 2 W Processor**: Video Processing Hub - Handles video analysis and face recognition
+
 
 See: **[Pi Zero Setup Guide](pi-zero-setup.md)** and **[Pi Quick Reference](pi-quick-reference.md)**.
 
