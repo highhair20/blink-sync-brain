@@ -74,33 +74,50 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
 
 1. **Enable USB Gadget Mode**
    ```bash
+   # Edit config.txt
    sudo nano /boot/firmware/config.txt
    ```
    Append the following to the bottom of the file:
    ```bash
+   # Enable USB gadget mode
    dtoverlay=dwc2
+   dtparam=usb_con=1
    ```
-   A reboot is needed for this to take effect: 
+
+2. **Enable USB Gadget Modules**
+   ```bash
+   # Edit modules file
+   sudo nano /etc/modules
+   ```
+   Add these lines to the end of the file:
+   ```bash
+   dwc2
+   g_mass_storage
+   ```
+
+3. **Reboot to Apply Changes**
    ```bash
    sudo reboot
    ```
-
+--- 
 1. **Initial State**
    
    Run the script to put the Brain Drive into storage mode for the first time.
 
 1. **Install Storage Mode Script**
+   After the reboot you'll need to ssh into the Pi
    ```bash
-   sudo mkdir -p /opt/blink-sync-brain
-   sudo cp /opt/blink-sync-brain-repo/scripts/drive/start_storage_mode.sh /opt/blink-sync-brain/start_storage_mode.sh
+   ssh pi@braindrive.local
+   ```
+   
+   Copy the storage mode script to the correct location:
+   ```bash
+   sudo cp /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh /opt/blink-sync-brain/start_storage_mode.sh
    sudo chmod +x /opt/blink-sync-brain/start_storage_mode.sh
    ```
 
 2. **Create Configuration File**
    ```bash
-   # Create config directory
-   sudo mkdir -p /etc/blink-sync-brain
-   
    # Copy the drive-specific configuration
    sudo cp /opt/blink-sync-brain/configs/drive.yaml /etc/blink-sync-brain/config.yaml
    
@@ -126,19 +143,33 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
 3. **Test Storage Mode**
    ```bash
    # Simple storage mode activation
-   sudo ./opt/blink-sync-brain/start_storage_mode.sh
+   sudo /opt/blink-sync-brain/start_storage_mode.sh
 
    # Check if it's working
    lsmod | grep g_mass_storage
    dmesg | tail -10
+   
+   # Check if USB gadget is recognized
+   lsusb
    ```
 
 4. **Create Systemd Service**
+
+   You have two options for the systemd service:
+
+   **Option A: Simple Shell Script Service (Recommended)**
+   ```bash
+   sudo cp /opt/blink-sync-brain/scripts/systemd/blink-drive-simple.service /etc/systemd/system/blink-drive.service
+   ```
+   This service uses the `start_storage_mode.sh` script directly.
+
+   **Option B: Python Application Service**
    ```bash
    sudo cp /opt/blink-sync-brain/scripts/systemd/blink-drive.service /etc/systemd/system/
    ```
+   This service uses the full Python application with `blink-sync-brain start --mode usb-gadget`.
 
-   The service will invoke `blink-drive start` using `/etc/blink-sync-brain/config.yaml`.
+   **Note**: Option A is simpler and more reliable for basic USB gadget functionality.
 
 5. **Enable and Start the Service**
    ```bash
@@ -160,12 +191,7 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    ```
 -->
 
-4. **Setup Storage Directory**
-   ```bash
-   sudo mkdir -p /var/blink_storage
-   sudo chown pi:pi /var/blink_storage
-   ```
-
+<!--
 5. **Install Python role and Test Storage Mode**
    ```bash
    # Install minimal role
@@ -182,6 +208,7 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    # Check if the virtual drive exists
    ls -la /var/blink_storage/
    ```
+-->
 
 ## ✨ Pi Zero 2 W #2: Video Processing Setup
 
@@ -364,15 +391,83 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
 
 ### USB Gadget Issues
 
-1. **Gadget Not Recognized**
+1. **Gadget Not Recognized - Complete Diagnostic**
    ```bash
    # Check if modules are loaded
    lsmod | grep dwc2
    lsmod | grep g_mass_storage
    
+   # Check if USB gadget is active
+   ls /sys/kernel/config/usb_gadget/ 2>/dev/null || echo "No USB gadgets found"
+   
+   # Check kernel messages for USB errors
+   dmesg | grep -i usb | tail -20
+   dmesg | grep -i gadget | tail -20
+   
+   # Check if virtual drive exists and is accessible
+   ls -la /var/blink_storage/virtual_drive.img
+   
+   # Test manual module loading
+   sudo modprobe -r g_mass_storage 2>/dev/null || true
+   sudo modprobe g_mass_storage file=/var/blink_storage/virtual_drive.img removable=1 stall=0
+   
+   # Check if it appears in lsusb
+   lsusb
+   ```
+
+2. **USB Gadget Not Appearing on Host Computer**
+   ```bash
+   # Verify the virtual drive file is properly formatted
+   sudo file /var/blink_storage/virtual_drive.img
+   
+   # Check file permissions
+   ls -la /var/blink_storage/virtual_drive.img
+   
+   # Ensure the file is not mounted elsewhere
+   mount | grep virtual_drive
+   
+   # Test with a smaller test file
+   sudo dd if=/dev/zero of=/tmp/test.img bs=1M count=100
+   sudo mkfs.vfat /tmp/test.img
+   sudo modprobe -r g_mass_storage
+   sudo modprobe g_mass_storage file=/tmp/test.img removable=1 stall=0
+   ```
+
+3. **Module Loading Issues**
+   ```bash
+   # Check if dwc2 module is available
+   modinfo dwc2
+   
+   # Check if g_mass_storage module is available
+   modinfo g_mass_storage
+   
+   # Check kernel version compatibility
+   uname -r
+   
    # Reload modules if needed
+   sudo modprobe -r g_mass_storage dwc2
    sudo modprobe dwc2
    sudo modprobe g_mass_storage
+   ```
+
+4. **Systemd Service Issues**
+   ```bash
+   # Check service status
+   sudo systemctl status blink-drive
+   
+   # Check service logs
+   sudo journalctl -u blink-drive -f
+   
+   # Check if the command exists
+   which blink-sync-brain
+   which start_storage_mode.sh
+   
+   # Test the command manually
+   sudo /opt/blink-sync-brain/start_storage_mode.sh
+   
+   # Reload systemd and restart service
+   sudo systemctl daemon-reload
+   sudo systemctl restart blink-drive
    ```
 
 2. **Virtual Drive Not Created**

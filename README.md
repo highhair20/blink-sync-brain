@@ -1,8 +1,35 @@
 # Blink Sync Brain
 
-Two Raspberry Pi Zero 2 Ws working together:
-- Pi #1 Drive: USB Gadget that presents a virtual USB drive to the Blink Sync Module
-- Pi #2 Processor: Pulls clips, runs face recognition and video processing, and stores results
+A Raspberry Pi-based system that extends Blink security cameras with face recognition, local video storage, and intelligent video processing. Two Raspberry Pi Zero 2 Ws work together in a dual-role architecture to intercept, analyze, and manage video clips from Blink cameras.
+
+## Overview
+
+Blink cameras don't provide local storage or advanced video analysis. This project solves that by intercepting the Blink Sync Module's USB connection using a virtual USB gadget, capturing clips locally, and running machine learning-based face recognition on a dedicated processor Pi.
+
+### Architecture
+
+| | Pi #1 — Drive (USB Gadget) | Pi #2 — Processor (Video & Face Recognition) |
+|---|---|---|
+| **Role** | Emulates a USB flash drive to the Blink Sync Module | Processes intercepted video clips and performs face recognition |
+| **Key Components** | `USBGadgetManager` | `VideoProcessor`, `FaceRecognitionEngine` |
+| **Capabilities** | Virtual 32GB FAT32 drive image, mode switching between Storage Mode (Blink access) and Server Mode (processor access), Samba file sharing, storage monitoring | Frame extraction, face detection and matching against a known-faces database, batch processing, result storage and metadata tracking |
+
+### Data Flow
+
+1. **Capture** — Blink camera records a clip and writes it to what it thinks is a USB drive (actually Pi #1's virtual drive image)
+2. **Transfer** — Pi #1 switches to Server Mode so Pi #2 can access new clips
+3. **Process** — Pi #2 extracts frames, runs face detection/recognition against the known-faces database
+4. **Notify** — Known faces are logged; unknown faces trigger notifications (email, Pushbullet, or webhooks)
+5. **Cleanup** — Old clips are automatically removed based on configurable retention policies (default: 30 days, 80% storage threshold)
+
+### Key Technologies
+
+- **Python 3.8+** with async architecture
+- **face_recognition** + **OpenCV** for video/image processing
+- **TensorFlow Lite** for edge ML inference
+- **structlog** for structured JSON logging
+- **YAML configuration** with environment variable overrides
+- **systemd services** for automatic startup on each Pi
 
 ## 📖 Documentation
 

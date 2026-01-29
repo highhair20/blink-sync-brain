@@ -4,12 +4,6 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
 **Note**: This guide assumes you're setting up from a Mac and that the Pi boards use NetworkManager for network configuration (default in recent Raspberry Pi OS versions).
 
-## 📋 Overview
-
-The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
-
-- **Pi Zero 2 W Drive**: USB Gadget Mode - Acts as virtual USB storage for Blink Sync Module
-- **Pi Zero 2 W Processor**: Video Processing Hub - Handles video analysis and face recognition
 
 ## 🛒 Hardware Requirements
 
@@ -45,7 +39,7 @@ The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
 
 1. **Choose the Device**
 
-   Click 'NO FILTERING'.
+   Click 'CHOOSE DEVICE'.
    <div align="center">
       <img src="images/01_setup_pi.png" alt="Raspberry Pi Imager App" width="600" />
    </div>
@@ -169,26 +163,13 @@ The Blink Sync Brain system uses two Raspberry Pi Zero 2 W boards:
 1. **Reclaim the full SSD capacity**
    
    The Raspberry Pi Imager tool copies a partition image of a fixed size, leaving the rest of the SSD as unallocated space. In our case we have a 64GB SSD card. To verify that the full capacity of the SSD is not available plug the card reader into your computer and run the following:
-   ```
-   df -H
-   ```
-   You should see something like:
-   ```
-   Filesystem      Size  Used Avail Use% Mounted on
-   /dev/mmcblk0p1  535M   71M  465M  14% /boot/firmware
-   ```
-   Notice the Size shows 535M. To reclaim the full SSD capacity run
+
    ```
    sudo raspi-config
    ```
    Go to Advanced Options and select Expand Filesystem.
    Follow the on-screen instructions to expand the partition to use all available space.
    Reboot your Raspberry Pi when prompted.
-
-   Now verify the full capacity of the SSD is available. 
-   ```
-   sudo fdisk -l
-   ```
 
 
 1. **Repeat**

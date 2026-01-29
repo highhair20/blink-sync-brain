@@ -1,0 +1,14 @@
+[Unit]
+Description=Blink Drive Test Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'echo "Starting USB gadget..." && /opt/blink-sync-brain/start_storage_mode.sh && echo "USB gadget started successfully"'
+RemainAfterExit=yes
+User=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
