@@ -16,7 +16,7 @@ if [ -f "/var/blink_storage/virtual_drive.img" ]; then
     echo "✅ Virtual drive file exists"
     ls -la /var/blink_storage/virtual_drive.img
     echo "File type:"
-    sudo file /var/blink_storage/virtual_drive.img
+    file /var/blink_storage/virtual_drive.img
 else
     echo "❌ Virtual drive file missing: /var/blink_storage/virtual_drive.img"
 fi
@@ -43,8 +43,8 @@ echo
 
 echo "6. Testing manual module loading..."
 echo "Attempting to load g_mass_storage module..."
-sudo modprobe -r g_mass_storage 2>/dev/null || true
-if sudo modprobe g_mass_storage file=/var/blink_storage/virtual_drive.img removable=1 stall=0; then
+modprobe -r g_mass_storage 2>/dev/null || true
+if modprobe g_mass_storage file=/var/blink_storage/virtual_drive.img removable=1 stall=0; then
     echo "✅ Module loaded successfully"
     lsmod | grep g_mass_storage
 else

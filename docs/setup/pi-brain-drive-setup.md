@@ -81,21 +81,30 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    ```bash
    # Enable USB gadget mode
    dtoverlay=dwc2
-   dtparam=usb_con=1
    ```
 
-2. **Enable USB Gadget Modules**
+2. **Add dwc2 to the kernel command line**
+   ```bash
+   # Edit cmdline.txt — this file is a SINGLE line, append to the END of the existing line
+   sudo nano /boot/firmware/cmdline.txt
+   ```
+   Append `modules-load=dwc2` to the **end** of the existing line (do NOT create a new line):
+   ```
+   ... rootwait modules-load=dwc2
+   ```
+
+3. **Enable USB Gadget Module**
    ```bash
    # Edit modules file
    sudo nano /etc/modules
    ```
-   Add these lines to the end of the file:
+   Add this line to the end of the file:
    ```bash
    dwc2
-   g_mass_storage
    ```
+   **Note:** Do NOT add `g_mass_storage` here. It must be loaded with the `file=` parameter by the startup script, not at boot.
 
-3. **Reboot to Apply Changes**
+4. **Reboot to Apply Changes**
    ```bash
    sudo reboot
    ```
