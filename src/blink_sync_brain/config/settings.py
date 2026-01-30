@@ -6,7 +6,7 @@ system enhancement application.
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -51,14 +51,12 @@ class FaceRecognitionSettings:
 class NotificationSettings:
     """Notification configuration settings."""
     enable_notifications: bool = True
-    notification_types: list = None
+    notification_types: list = field(
+        default_factory=lambda: ["unknown_face", "motion_detected", "system_alert"]
+    )
     email_enabled: bool = False
     pushbullet_enabled: bool = False
     webhook_enabled: bool = False
-    
-    def __post_init__(self):
-        if self.notification_types is None:
-            self.notification_types = ["unknown_face", "motion_detected", "system_alert"]
 
 
 @dataclass
@@ -85,24 +83,23 @@ class LoggingSettings:
 class Settings:
     """Main application settings."""
     
-    # Load environment variables
-    load_dotenv()
-    
     # Application settings
     app_name: str = "Blink Sync Brain"
     version: str = "1.0.0"
-    debug: bool = os.getenv("DEBUG", "false").lower() == "true"
-    
+    debug: bool = False
+
     # Component settings
-    storage: StorageSettings = StorageSettings()
-    processing: ProcessingSettings = ProcessingSettings()
-    face_recognition: FaceRecognitionSettings = FaceRecognitionSettings()
-    notifications: NotificationSettings = NotificationSettings()
-    network: NetworkSettings = NetworkSettings()
-    logging: LoggingSettings = LoggingSettings()
-    
+    storage: StorageSettings = field(default_factory=StorageSettings)
+    processing: ProcessingSettings = field(default_factory=ProcessingSettings)
+    face_recognition: FaceRecognitionSettings = field(default_factory=FaceRecognitionSettings)
+    notifications: NotificationSettings = field(default_factory=NotificationSettings)
+    network: NetworkSettings = field(default_factory=NetworkSettings)
+    logging: LoggingSettings = field(default_factory=LoggingSettings)
+
     def __post_init__(self):
         """Post-initialization setup."""
+        load_dotenv()
+        self.debug = os.getenv("DEBUG", "false").lower() == "true"
         # Override with environment variables if present
         self._load_from_env()
     
