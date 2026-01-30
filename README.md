@@ -33,26 +33,10 @@ Blink cameras don't provide local storage or advanced video analysis. This proje
 
 ## 📖 Documentation
 
-This project contains multiple README files with detailed documentation and visual guides:
-
-### 🖼️ Visual Documentation
-
-- ? **[Architecture Overview](./docs/architecture/README.md)** - System architecture diagrams and flow charts
-- ? **[User Interface Guide](./docs/ui/README.md)** - Screenshots and UI walkthroughs
-- **[Setup Instructions](./docs/setup/README.md)** - Step-by-step setup with annotated screenshots
-- ? **[API Documentation](./docs/api/README.md)** - API endpoints with request/response examples
-- ? **[Troubleshooting Guide](./docs/troubleshooting/README.md)** - Common issues with visual solutions
-
-### 🍓 Raspberry Pi Setup Guides
-
-- **[Complete Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)**
-- **[Pi Quick Reference](./docs/setup/pi-quick-reference.md)**
-
-### 📋 Quick Start
-
-1. **Installation**: See [Setup Instructions](./docs/setup/README.md) for detailed installation steps
-2. **Configuration**: Follow the [Architecture Overview](./docs/architecture/README.md) for system setup
-3. **Usage**: Check the [User Interface Guide](./docs/ui/README.md) for interface walkthroughs
+- **[Setup Instructions](./docs/setup/README.md)** — Installation and configuration for both Pis
+- **[Complete Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)** — Detailed hardware and OS setup
+- **[Pi Brain Drive Setup](./docs/setup/pi-brain-drive-setup.md)** — USB gadget and processor setup walkthrough
+- **[Pi Quick Reference](./docs/setup/pi-quick-reference.md)** — Common commands and tips
 
 ## 🚀 Features
 
@@ -62,7 +46,7 @@ This project contains multiple README files with detailed documentation and visu
 - **Video Processing**: Automated video analysis, stitching, and management
 - **Intelligent Storage**: Smart cleanup and retention policies
 - **Real-time Notifications**: Alert system for unknown faces and events
-- **Comprehensive API**: RESTful API for system management and monitoring
+- **Notifications**: Alert system for unknown faces via email, Pushbullet, or webhooks
 
 ## 📁 Project Structure
 
@@ -72,18 +56,17 @@ blink-sync-brain/
 │   ├── drive.yaml                # Example config for Pi #1 (Drive)
 │   └── processor.yaml            # Example config for Pi #2 (Processor)
 ├── scripts/
-│   ├── drive/usb-gadget.sh       # USB gadget config script for Pi #1
+│   ├── drive/start_storage_mode.sh  # USB gadget storage mode script for Pi #1
 │   └── systemd/
 │       ├── blink-drive.service   # Systemd unit for Pi #1
 │       └── blink-processor.service # Systemd unit for Pi #2
 ├── src/
 │   └── blink_sync_brain/
-│       ├── common/               # Shared code
+│       ├── core/                 # Shared business logic (USB gadget, video, face recognition, storage)
 │       ├── drive/                # Role-specific code for Pi #1 (Drive)
 │       ├── processor/            # Role-specific code for Pi #2 (Processor)
 │       ├── config/               # Settings
-│       ├── models/               # Data models
-│       └── utils/                # Utility functions
+│       └── models/               # Data models
 └── docs/
     └── setup/
         └── pi-zero-setup.md
@@ -92,10 +75,8 @@ blink-sync-brain/
 ## 🔗 Quick Links
 
 - **Getting Started**: [Setup Guide](./docs/setup/README.md)
-- **System Overview**: [Architecture Documentation](./docs/architecture/README.md)
-- **User Guide**: [Interface Documentation](./docs/ui/README.md)
-- **API Reference**: [API Documentation](./docs/api/README.md)
-- **Need Help?**: [Troubleshooting Guide](./docs/troubleshooting/README.md)
+- **Hardware Setup**: [Pi Brain Drive Setup](./docs/setup/pi-brain-drive-setup.md)
+- **Quick Reference**: [Pi Quick Reference](./docs/setup/pi-quick-reference.md)
 
 ## 🍓 Roles and CLIs
 
@@ -131,4 +112,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-*For detailed visual documentation, please refer to the individual README files in the `docs/` directory.*
+*For detailed documentation, see the setup guides in the `docs/setup/` directory.*

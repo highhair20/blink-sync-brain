@@ -145,18 +145,18 @@ sudo apt autoclean
 ### Enable USB Gadget Mode
 ```bash
 # Edit boot configuration
-sudo nano /boot/config.txt
+sudo nano /boot/firmware/config.txt
 
-# Add these lines:
+# Add this line:
 dtoverlay=dwc2
-dtparam=usb_con=1
 
 # Edit modules
 sudo nano /etc/modules
 
-# Add these lines:
+# Add this line:
 dwc2
-g_mass_storage
+# NOTE: Do NOT add g_mass_storage here. It must be loaded with
+# the file= parameter by the startup script, not at boot.
 
 # Reboot to apply changes
 sudo reboot
@@ -178,13 +178,13 @@ lsusb
 ### Performance Optimization
 ```bash
 # Enable GPU memory split (for video processing)
-sudo nano /boot/config.txt
+sudo nano /boot/firmware/config.txt
 
 # Add or modify:
 gpu_mem=128
 
 # Overclock (use with caution)
-sudo nano /boot/config.txt
+sudo nano /boot/firmware/config.txt
 
 # Add:
 arm_freq=1000
@@ -197,47 +197,50 @@ over_voltage=2
 ```bash
 # Clone repository
 cd /opt
-sudo git clone https://github.com/yourusername/blink-sync-brain.git
+sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
 cd blink-sync-brain
 
-# Install dependencies
-sudo pip3 install -r requirements.txt
+# Install for Pi #1 (Drive)
+pip install .[drive]
+
+# Or install for Pi #2 (Processor)
+pip install .[processor]
 
 # Copy configuration
-sudo cp config.yaml.example /etc/blink-sync-brain/config.yaml
+sudo mkdir -p /etc/blink-sync-brain
+# For Pi #1:
+sudo cp configs/drive.yaml /etc/blink-sync-brain/config.yaml
+# For Pi #2:
+sudo cp configs/processor.yaml /etc/blink-sync-brain/config.yaml
 ```
 
 ### Service Management
 ```bash
-# Start USB gadget service
-sudo systemctl start blink-usb-gadget.service
+# Start drive service (Pi #1)
+sudo systemctl start blink-drive.service
 
 # Enable auto-start
-sudo systemctl enable blink-usb-gadget.service
+sudo systemctl enable blink-drive.service
 
 # Check service status
-sudo systemctl status blink-usb-gadget.service
+sudo systemctl status blink-drive.service
 
 # View service logs
-sudo journalctl -u blink-usb-gadget.service -f
+sudo journalctl -u blink-drive.service -f
 ```
 
 ### Application Commands
 ```bash
-# Check system status
-blink-sync-brain status
+# Pi #1 (Drive) commands
+blink-drive setup
+blink-drive start
+blink-drive stop
+blink-drive status
 
-# Process a video
-blink-sync-brain process-video /path/to/video.mp4
-
-# Setup face database
-blink-sync-brain setup face-database
-
-# Clean old files
-blink-sync-brain cleanup
-
-# Run tests
-blink-sync-brain test
+# Pi #2 (Processor) commands
+blink-processor start
+blink-processor status
+blink-processor process-video /path/to/video.mp4 --output-dir /var/blink_storage/results
 ```
 
 ## 🔒 Security Commands
@@ -398,7 +401,7 @@ vcgencmd get_throttled
 ### Important Files
 ```bash
 # Boot configuration
-/boot/config.txt
+/boot/firmware/config.txt
 
 # Network configuration
 /etc/network/interfaces
@@ -449,7 +452,7 @@ sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
 ### For Pi Zero 2 W
 ```bash
 # Reduce GPU memory usage
-sudo nano /boot/config.txt
+sudo nano /boot/firmware/config.txt
 # Set: gpu_mem=64
 
 # Disable unnecessary services
@@ -466,13 +469,13 @@ sudo swapon /swapfile
 ### For Video Processing
 ```bash
 # Increase process priority
-sudo nice -n -10 blink-sync-brain process-video video.mp4
+sudo nice -n -10 blink-processor process-video video.mp4
 
 # Use tmpfs for temporary files
 sudo mount -t tmpfs -o size=512M tmpfs /tmp
 
 # Monitor during processing
-watch -n 1 'ps aux | grep blink-sync-brain'
+watch -n 1 'ps aux | grep blink-processor'
 ```
 
 ## 📚 Useful Scripts

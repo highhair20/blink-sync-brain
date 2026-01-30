@@ -20,14 +20,14 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
 1. **Install the Blink Sync Brain application**
    ```bash
    cd /opt
-   sudo git clone https://github.com/highhair20/blink-sync-brain.git
+   sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
    # Install minimal dependencies for Brain Drive functionality
    # Install may take some time. I recommend running this in screen.
    screen
    cd blink-sync-brain
    sudo python -m venv env
    source env/bin/activate
-   sudo ./env/bin/pip install -r requirements-drive.txt
+   pip install .[drive]
    ```
 
 1. **Create the Virtual Storage**
@@ -176,7 +176,7 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    ```bash
    sudo cp /opt/blink-sync-brain/scripts/systemd/blink-drive.service /etc/systemd/system/
    ```
-   This service uses the full Python application with `blink-sync-brain start --mode usb-gadget`.
+   This service uses the full Python application with `blink-drive start`.
 
    **Note**: Option A is simpler and more reliable for basic USB gadget functionality.
 
@@ -259,22 +259,20 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
 1. **Clone the Repository**
    ```bash
    cd /opt
-   sudo git clone https://github.com/yourusername/blink-sync-brain.git
+   sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
    cd blink-sync-brain
    ```
 
 2. **Install Python Dependencies**
    ```bash
    # Install full dependencies for video processing and face recognition
-   pip install -r requirements-processor.txt
-   
-   # Alternative: Install as package with processor extras
-   # pip install .[processor]
+   pip install .[processor]
    ```
 
 3. **Create Configuration**
    ```bash
-   sudo cp config.yaml.example /etc/blink-sync-brain/config.yaml
+   sudo mkdir -p /etc/blink-sync-brain
+   sudo cp configs/processor.yaml /etc/blink-sync-brain/config.yaml
    sudo nano /etc/blink-sync-brain/config.yaml
    ```
 
@@ -337,8 +335,8 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    # Add known faces (place face images in the directory)
    # Image names should be: person_name.jpg
    
-   # Setup the face database
-   blink-sync-brain setup face-database
+   # TODO: Face database setup command is not yet implemented.
+   # For now, manage face images manually in the face_images directory.
    ```
 
 2. **Test Face Recognition**
@@ -352,7 +350,7 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
 ### Step 1: Connect Pi #1 to Blink Sync Module
 
 1. **Connect USB Cable**
-   - Connect Pi #1 to Blink Sync Module using USB-A to USB-A cable
+   - Connect Pi #1 to Blink Sync Module using USB-A to Micro USB cable
    - Power on Pi #1
    - Wait for USB gadget to initialize
 
@@ -468,7 +466,7 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    sudo journalctl -u blink-drive -f
    
    # Check if the command exists
-   which blink-sync-brain
+   which blink-drive
    which start_storage_mode.sh
    
    # Test the command manually
@@ -486,7 +484,7 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    
    # Create manually if needed
    sudo dd if=/dev/zero of=/var/blink_storage/virtual_drive.img bs=1G count=32
-   sudo mkfs.exfat /var/blink_storage/virtual_drive.img
+   sudo mkfs.vfat /var/blink_storage/virtual_drive.img
    ```
 
 ### Video Processing Issues
@@ -584,11 +582,11 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    echo
    
    echo "Pi #1 (USB Gadget):"
-   ssh pi@192.168.1.200 "blink-sync-brain status"
+   ssh pi@192.168.1.200 "blink-drive status"
    echo
-   
+
    echo "Pi #2 (Video Processing):"
-   blink-sync-brain status
+   blink-processor status
    echo
    
    echo "Storage Usage:"
@@ -628,9 +626,9 @@ Brain Drive emulates a USB Flash Drive for the Blink Module. It is controlled by
    # Backup face database
    cp /var/blink_storage/face_database.pkl /backup/
    
-   # Clean old videos
-   blink-sync-brain cleanup --dry-run
-   blink-sync-brain cleanup
+   # Check storage status
+   blink-drive status
+   blink-processor status
    ```
 
 ## 🔒 Security Considerations
