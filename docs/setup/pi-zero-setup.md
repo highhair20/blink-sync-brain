@@ -22,6 +22,8 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 ### Additional for Pi Zero 2 W Processor:
 - **External storage** (optional, for additional video storage)
 
+<!-- TODO: Update screenshots and instructions to match the latest Raspberry Pi Imager version -->
+
 ## ✨ Pi Zero 2 W Setup (both USB Gadget and Video Processing PIs)
 
 ### Step 1: Prepare the MicroSD Card (from your Mac)
@@ -145,26 +147,16 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
 1. **SSH into your Pi**
 
-   Insert the Micro SD card in to your Pi and power it up. Wait a couple of minutes for the LED to stop flashing. Now remove the power cable and reinsert it. This reboot process is required for the hostname to register. At this point you can SSH into the pi using the hostname.
+   Insert the Micro SD card in to your Pi and power it up. Wait a couple of minutes for the LED to stop flashing. At this point you can SSH into the pi using the hostname.
    ```
-   ssh pi@braindrive.local
+   ssh pi@brainstorage.local
    ```
 
-1. **Reclaim the full SSD capacity**
-   
-   The Raspberry Pi Imager tool copies a partition image of a fixed size, leaving the rest of the SSD as unallocated space. In our case we have a 64GB SSD card. To verify that the full capacity of the SSD is not available plug the card reader into your computer and run the following:
-
-   ```
-   sudo raspi-config
-   ```
-   Go to Advanced Options and select Expand Filesystem.
-   Follow the on-screen instructions to expand the partition to use all available space.
-   Reboot your Raspberry Pi when prompted.
-
+   **Note:** Raspberry Pi OS automatically expands the filesystem to use the full SD card on first boot. No manual expansion is needed.
 
 1. **Repeat**
 
-   Repeat the steps in this section for the Raspberry Pi 2 W Processor. 
+   Repeat the steps in this section for the Raspberry Pi 2 W Processor.
 
 
 ## 📚 Additional Resources
