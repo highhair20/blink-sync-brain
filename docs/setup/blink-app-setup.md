@@ -15,7 +15,7 @@ Pi #1 emulates a USB flash drive for the Blink Sync Module. It switches between 
 ### Step 1: System Dependencies
 
 ```bash
-ssh pi@braindrive.local
+ssh pi@blink-usb.local
 
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git python3 python3-pip screen cmake libboost-all-dev
@@ -119,7 +119,7 @@ Save the file and restart Samba: `sudo systemctl restart smbd`.
 After reboot, SSH back in:
 
 ```bash
-ssh pi@braindrive.local
+ssh pi@blink-usb.local
 ```
 
 1. **Install Storage Mode Script**
@@ -160,23 +160,35 @@ ssh pi@braindrive.local
    lsusb
    ```
 
+### Mode Switching Scripts
+
+Pi #1 has two mode scripts in `scripts/drive/`:
+
+- **`start_storage_mode.sh`** — Loads the `g_mass_storage` kernel module, making the virtual drive visible to the Blink Sync Module as a USB flash drive.
+- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the virtual drive locally so Samba can share it with Pi #2 for clip retrieval.
+
+Install both scripts:
+```bash
+sudo cp /opt/blink-sync-brain/scripts/drive/start_server_mode.sh /opt/blink-sync-brain/start_server_mode.sh
+sudo chmod +x /opt/blink-sync-brain/start_server_mode.sh
+```
+
+To switch modes manually:
+```bash
+# Switch to Server Mode (Pi #2 can pull clips)
+sudo /opt/blink-sync-brain/start_server_mode.sh
+
+# Switch back to Storage Mode (Blink can write clips)
+sudo /opt/blink-sync-brain/start_storage_mode.sh
+```
+
 ### Step 7: Create Systemd Service
 
-You have two options:
+Install the service file that runs `start_storage_mode.sh` at boot:
 
-**Option A: Simple Shell Script Service (Recommended)**
-```bash
-sudo cp /opt/blink-sync-brain/scripts/systemd/blink-drive-simple.service /etc/systemd/system/blink-drive.service
-```
-This service uses the `start_storage_mode.sh` script directly.
-
-**Option B: Python Application Service**
 ```bash
 sudo cp /opt/blink-sync-brain/scripts/systemd/blink-drive.service /etc/systemd/system/
 ```
-This service uses the full Python application with `blink-drive start`.
-
-**Note**: Option A is simpler and more reliable for basic USB gadget functionality.
 
 Enable and start the service, then reboot:
 ```bash
@@ -333,6 +345,12 @@ done
 ## Troubleshooting
 
 ### USB Gadget Issues
+
+As a first step, run the built-in diagnostic script. It checks modules, the virtual drive file, USB gadget configfs, kernel messages, and the systemd service:
+
+```bash
+sudo /opt/blink-sync-brain/scripts/drive/diagnose_usb_gadget.sh
+```
 
 1. **Gadget Not Recognized — Complete Diagnostic**
    ```bash

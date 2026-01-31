@@ -34,7 +34,7 @@ Blink cameras don't provide local storage or advanced video analysis. This proje
 ## 📖 Documentation
 
 - **[Hardware & OS Setup](./docs/setup/pi-zero-setup.md)** — Flashing SD cards, first boot, SSH, expand filesystem
-- **[Application Setup](./docs/setup/pi-brain-drive-setup.md)** — Software install, USB gadget config, processor config, systemd, networking, troubleshooting
+- **[Application Setup](./docs/setup/blink-app-setup.md)** — Software install, USB gadget config, processor config, systemd, networking, troubleshooting
 
 ## 🚀 Features
 
@@ -68,13 +68,13 @@ blink-sync-brain/
 └── docs/
     └── setup/
         ├── pi-zero-setup.md      # Hardware & OS setup
-        └── pi-brain-drive-setup.md # Application setup
+        └── blink-app-setup.md # Application setup
 ```
 
 ## 🔗 Quick Links
 
 - **Hardware & OS Setup**: [Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)
-- **Application Setup**: [Application Setup Guide](./docs/setup/pi-brain-drive-setup.md)
+- **Application Setup**: [Application Setup Guide](./docs/setup/blink-app-setup.md)
 
 ## 🍓 Roles and CLIs
 
@@ -110,4 +110,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-*For detailed documentation, see the [Hardware & OS Setup](./docs/setup/pi-zero-setup.md) and [Application Setup](./docs/setup/pi-brain-drive-setup.md) guides.*
+*For detailed documentation, see the [Hardware & OS Setup](./docs/setup/pi-zero-setup.md) and [Application Setup](./docs/setup/blink-app-setup.md) guides.*

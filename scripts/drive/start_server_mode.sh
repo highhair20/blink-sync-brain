@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "Switching to Server Mode for Pi-Guard..."
+echo "Switching to Server Mode for Blink Sync Brain..."
 # Unload the kernel module to stop USB drive emulation
 modprobe -r g_mass_storage
 # Mount the storage file locally so Samba can see it

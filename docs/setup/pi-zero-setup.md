@@ -16,10 +16,10 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 - **Micro HDMI to HDMI cables** (optional, for monitor)
 - **USB keyboard** (optional)
 
-### Additional for Pi Zero 2 W Storage:
+### Additional for blink-usb (Pi #1 — USB Gadget):
 - **USB-A to Micro USB cable** (to connect to Blink Sync Module)
 
-### Additional for Pi Zero 2 W Processor:
+### Additional for blink-processor (Pi #2 — Video Processing):
 - **External storage** (optional, for additional video storage)
 
 <!-- TODO: Update screenshots and instructions to match the latest Raspberry Pi Imager version -->
@@ -90,7 +90,7 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
    <div align="center">
       <img src="images/09_setup_pi.png" alt="Enabling SSH access" width="600" />
    </div>
-   Under the 'General' tab set the hostname, username and password, Wifi settings and locale.
+   Under the 'General' tab set the hostname (`blink-usb` for Pi #1, `blink-processor` for Pi #2), username and password, Wifi settings and locale.
    <div align="center">
       <img src="images/10_setup_pi.png" alt="Enabling SSH access" width="600" />
    </div>
@@ -149,15 +149,21 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
    Insert the Micro SD card in to your Pi and power it up. Wait a couple of minutes for the LED to stop flashing. At this point you can SSH into the pi using the hostname.
    ```
-   ssh pi@brainstorage.local
+   ssh pi@blink-usb.local
    ```
 
    **Note:** Raspberry Pi OS automatically expands the filesystem to use the full SD card on first boot. No manual expansion is needed.
 
 1. **Repeat**
 
-   Repeat the steps in this section for the Raspberry Pi 2 W Processor.
+   Repeat the steps in this section for the Raspberry Pi 2 W Processor, using the hostname `blink-processor`.
 
+## Next Steps
+
+Once both Pis are running and accessible via SSH, proceed to the [Application Setup Guide](blink-app-setup.md) to configure:
+
+- **blink-usb (Pi #1)** — USB gadget mode, virtual storage, Samba, and systemd service
+- **blink-processor (Pi #2)** — Video processing dependencies, face recognition, and systemd service
 
 ## 📚 Additional Resources
 
@@ -168,4 +174,4 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
 ---
 
-*For application setup and troubleshooting, see the [Application Setup Guide](pi-brain-drive-setup.md) or create an issue on the project repository.* 
+*For application setup and troubleshooting, see the [Application Setup Guide](blink-app-setup.md) or create an issue on the project repository.* 
