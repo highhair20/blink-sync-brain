@@ -33,10 +33,8 @@ Blink cameras don't provide local storage or advanced video analysis. This proje
 
 ## 📖 Documentation
 
-- **[Setup Instructions](./docs/setup/README.md)** — Installation and configuration for both Pis
-- **[Complete Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)** — Detailed hardware and OS setup
-- **[Pi Brain Drive Setup](./docs/setup/pi-brain-drive-setup.md)** — USB gadget and processor setup walkthrough
-- **[Pi Quick Reference](./docs/setup/pi-quick-reference.md)** — Common commands and tips
+- **[Hardware & OS Setup](./docs/setup/pi-zero-setup.md)** — Flashing SD cards, first boot, SSH, expand filesystem
+- **[Application Setup](./docs/setup/pi-brain-drive-setup.md)** — Software install, USB gadget config, processor config, systemd, networking, troubleshooting
 
 ## 🚀 Features
 
@@ -69,14 +67,14 @@ blink-sync-brain/
 │       └── models/               # Data models
 └── docs/
     └── setup/
-        └── pi-zero-setup.md
+        ├── pi-zero-setup.md      # Hardware & OS setup
+        └── pi-brain-drive-setup.md # Application setup
 ```
 
 ## 🔗 Quick Links
 
-- **Getting Started**: [Setup Guide](./docs/setup/README.md)
-- **Hardware Setup**: [Pi Brain Drive Setup](./docs/setup/pi-brain-drive-setup.md)
-- **Quick Reference**: [Pi Quick Reference](./docs/setup/pi-quick-reference.md)
+- **Hardware & OS Setup**: [Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)
+- **Application Setup**: [Application Setup Guide](./docs/setup/pi-brain-drive-setup.md)
 
 ## 🍓 Roles and CLIs
 
@@ -112,4 +110,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-*For detailed documentation, see the setup guides in the `docs/setup/` directory.*
+*For detailed documentation, see the [Hardware & OS Setup](./docs/setup/pi-zero-setup.md) and [Application Setup](./docs/setup/pi-brain-drive-setup.md) guides.*

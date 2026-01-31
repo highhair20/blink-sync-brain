@@ -119,36 +119,26 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
 1. **Fix WiFi configuration**
 
-   Remove and reinsert the Micro SD card. From the command line edit the ```firstrun.sh``` file.
+   Remove and reinsert the Micro SD card. The Raspberry Pi Imager writes WiFi credentials to a cloud-init network config file. The password is stored as a hashed PSK which can cause connection failures. Open the file and replace it with your plaintext password:
    ```
-   vim /Volumes/bootfs/firstrun.sh
-   ```
-
-   Search for your WiFi SSID. There will be two locations. In my case it's 
-   ```
-   /usr/lib/raspberrypi-sys-mods/imager_custom set_wlan '\sCasa de Kelly' 'dfa1a78e9fef75e6da63a65b66992a36f7f4a7a64fbba95383f1fcd7840f9739' 'US'
-
-   ...
-
-   network={
-        ssid="\sCasa de Kelly"
-        psk=dfa1a78e9fef75e6da63a65b66992a36f7f4a7a64fbba95383f1fcd7840f9739
-   }
+   vim /Volumes/bootfs/network-config
    ```
 
-   Replace the hashed password with your plain text password.
-   ```
-   /usr/lib/raspberrypi-sys-mods/imager_custom set_wlan '\sCasa de Kelly' '<YOUR PASSWORD>' 'US'
-
-   ...
-
-   network={
-        ssid="\sCasa de Kelly"
-        psk="<YOUR PASSWORD>"
-   }
+   Find the `access-points` section:
+   ```yaml
+   access-points:
+     "Casa de Kelly":
+       password: "55979980be566daa24018c3ff678eac0e6d71c317cf60f75dcd451f822267ab9"
    ```
 
-   Remove the SD Card from your Mac.
+   Replace the hashed password with your plaintext password:
+   ```yaml
+   access-points:
+     "Casa de Kelly":
+       password: "YOUR_PLAINTEXT_PASSWORD"
+   ```
+
+   Eject and remove the SD card from your Mac.
    
 
 ### Step 2: Initial Pi Setup
@@ -186,4 +176,4 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
 ---
 
-*For additional support, see the [Troubleshooting Guide](../troubleshooting/README.md) or create an issue on the project repository.* 
+*For application setup and troubleshooting, see the [Application Setup Guide](pi-brain-drive-setup.md) or create an issue on the project repository.* 
