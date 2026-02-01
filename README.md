@@ -12,7 +12,7 @@ Blink cameras don't provide local storage or advanced video analysis. This proje
 |---|---|---|
 | **Role** | Emulates a USB flash drive to the Blink Sync Module | Processes intercepted video clips and performs face recognition |
 | **Key Components** | `USBGadgetManager` | `VideoProcessor`, `FaceRecognitionEngine` |
-| **Capabilities** | Virtual 32GB FAT32 drive image, mode switching between Storage Mode (Blink access) and Server Mode (processor access), Samba file sharing, storage monitoring | Frame extraction, face detection and matching against a known-faces database, batch processing, result storage and metadata tracking |
+| **Capabilities** | Virtual 32GB FAT32 drive image, mode switching between Storage Mode (Blink access) and Server Mode (processor access), rsync-over-SSH file transfer, storage monitoring | Frame extraction, face detection and matching against a known-faces database, batch processing, result storage and metadata tracking |
 
 ### Data Flow
 

@@ -162,7 +162,7 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
 Once both Pis are running and accessible via SSH, proceed to the [Application Setup Guide](blink-app-setup.md) to configure:
 
-- **blink-usb (Pi #1)** — USB gadget mode, virtual storage, Samba, and systemd service
+- **blink-usb (Pi #1)** — USB gadget mode, virtual storage, and systemd service
 - **blink-processor (Pi #2)** — Video processing dependencies, face recognition, and systemd service
 
 ## 📚 Additional Resources

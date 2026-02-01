@@ -28,17 +28,7 @@ ssh pi@blink-usb.local
    dtoverlay=dwc2
    ```
 
-2. **Add dwc2 to the kernel command line**
-   ```bash
-   # Edit cmdline.txt — this file is a SINGLE line, append to the END of the existing line
-   sudo nano /boot/firmware/cmdline.txt
-   ```
-   Append `modules-load=dwc2` to the **end** of the existing line (do NOT create a new line):
-   ```
-   ... rootwait modules-load=dwc2
-   ```
-
-3. **Enable USB Gadget Module**
+2. **Enable USB Gadget Module**
    ```bash
    sudo nano /etc/modules
    ```
@@ -48,7 +38,7 @@ ssh pi@blink-usb.local
    ```
    **Note:** Do NOT add `g_mass_storage` here. It must be loaded with the `file=` parameter by the startup script, not at boot.
 
-4. **Reboot to Apply Changes**
+3. **Reboot to Apply Changes**
    ```bash
    sudo reboot
    ```
@@ -64,20 +54,7 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y git python3 python3-pip screen cmake libboost-all-dev
 ```
 
-### Step 3: Install the Application
-
-```bash
-cd /opt
-sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
-# Install may take some time. Running in screen is recommended.
-screen
-cd blink-sync-brain
-sudo python -m venv env
-source env/bin/activate
-pip install .[drive]
-```
-
-### Step 4: Create the Virtual Storage
+### Step 3: Create the Virtual Storage
 
 Create the large file that will act as the flash drive's storage. Running in `screen` is recommended in case your SSH session is interrupted.
 
@@ -91,44 +68,27 @@ sudo chmod 755 /var/blink_storage
 screen
 cd /var/blink_storage
 dd if=/dev/zero of=virtual_drive.img bs=1M count=32768 status=progress
-sudo chown pi:pi virtual_drive.img
 
 # Format the file with the FAT32 filesystem
-sudo mkfs.vfat virtual_drive.img
+sudo mkfs.vfat -F 32 virtual_drive.img
 ```
 
-### Step 5: Install & Configure Samba (for Server Mode)
+### Step 4: Install the Application
 
 ```bash
-sudo apt install samba -y
-# Create the directory that will be shared
-sudo mkdir -p /var/blink_storage/share
-sudo chown pi:pi /var/blink_storage/share
-# Edit the Samba config file
-sudo nano /etc/samba/smb.conf
+cd /opt
+sudo git clone https://github.com/highhair20/blink-sync-brain.git
+# Install may take some time. Running in screen is recommended.
+screen
+cd blink-sync-brain
+sudo python -m venv env
+source env/bin/activate
+pip install .[drive]
 ```
 
-Add this share definition to the very bottom of the file:
-```ini
-[BlinkClips]
-comment = Blink Video Clips
-path = /var/blink_storage/share
-read only = no
-browsable = yes
-guest ok = yes
-```
+### Step 5: Configure and Test Storage Mode
 
-Save the file and restart Samba: `sudo systemctl restart smbd`.
-
-### Step 6: Configure and Test Storage Mode
-
-1. **Install Storage Mode Script**
-   ```bash
-   sudo cp /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh /opt/blink-sync-brain/start_storage_mode.sh
-   sudo chmod +x /opt/blink-sync-brain/start_storage_mode.sh
-   ```
-
-2. **Create Configuration File**
+1. **Create Configuration File**
    ```bash
    sudo mkdir -p /etc/blink-sync-brain
    sudo cp /opt/blink-sync-brain/configs/drive.yaml /etc/blink-sync-brain/config.yaml
@@ -150,9 +110,9 @@ Save the file and restart Samba: `sudo systemctl restart smbd`.
 
    **Important**: Update `virtual_drive_path` and `virtual_drive_size_gb` to match your setup.
 
-3. **Test Storage Mode**
+2. **Test Storage Mode**
    ```bash
-   sudo /opt/blink-sync-brain/start_storage_mode.sh
+   sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
 
    # Verify
    lsmod | grep g_mass_storage
@@ -165,24 +125,23 @@ Save the file and restart Samba: `sudo systemctl restart smbd`.
 Pi #1 has two mode scripts in `scripts/drive/`:
 
 - **`start_storage_mode.sh`** — Loads the `g_mass_storage` kernel module, making the virtual drive visible to the Blink Sync Module as a USB flash drive.
-- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the virtual drive locally so Samba can share it with Pi #2 for clip retrieval.
-
-Install both scripts:
-```bash
-sudo cp /opt/blink-sync-brain/scripts/drive/start_server_mode.sh /opt/blink-sync-brain/start_server_mode.sh
-sudo chmod +x /opt/blink-sync-brain/start_server_mode.sh
-```
+- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the virtual drive at `/mnt/blink_drive` so Pi #2 can pull clips via rsync over SSH.
 
 To switch modes manually:
 ```bash
 # Switch to Server Mode (Pi #2 can pull clips)
-sudo /opt/blink-sync-brain/start_server_mode.sh
+sudo /opt/blink-sync-brain/scripts/drive/start_server_mode.sh
 
 # Switch back to Storage Mode (Blink can write clips)
-sudo /opt/blink-sync-brain/start_storage_mode.sh
+sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
 ```
 
-### Step 7: Create Systemd Service
+Pi #2 pulls clips from the mounted drive over SSH using rsync:
+```bash
+rsync -av pi@blink-usb.local:/mnt/blink_drive/ /var/blink_storage/videos/
+```
+
+### Step 6: Create Systemd Service
 
 Install the service file that runs `start_storage_mode.sh` at boot:
 
@@ -419,10 +378,9 @@ sudo /opt/blink-sync-brain/scripts/drive/diagnose_usb_gadget.sh
 
    # Check if the command exists
    which blink-drive
-   which start_storage_mode.sh
 
    # Test the command manually
-   sudo /opt/blink-sync-brain/start_storage_mode.sh
+   sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
 
    # Reload systemd and restart service
    sudo systemctl daemon-reload
