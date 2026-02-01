@@ -5,16 +5,4 @@ This package provides a comprehensive solution for local video processing,
 face recognition, and intelligent video management for Blink cameras.
 """
 
-__version__ = "1.0.0"
-
-from .core.usb_gadget import USBGadgetManager
-from .core.video_processor import VideoProcessor
-from .core.face_recognition import FaceRecognitionEngine
-from .core.storage_manager import StorageManager
-
-__all__ = [
-    "USBGadgetManager",
-    "VideoProcessor",
-    "FaceRecognitionEngine",
-    "StorageManager",
-] 
+__version__ = "1.1.0" 
