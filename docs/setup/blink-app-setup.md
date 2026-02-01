@@ -12,72 +12,11 @@ This guide covers installing and configuring the Blink Sync Brain software on bo
 
 Pi #1 emulates a USB flash drive for the Blink Sync Module. It switches between "Storage Mode" (for Blink) and "Server Mode" (for Pi #2 to pull clips).
 
-### Step 1: System Dependencies
+### Step 1: Enable USB Gadget Mode
 
 ```bash
 ssh pi@blink-usb.local
-
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y git python3 python3-pip screen cmake libboost-all-dev
 ```
-
-### Step 2: Install the Application
-
-```bash
-cd /opt
-sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
-# Install may take some time. Running in screen is recommended.
-screen
-cd blink-sync-brain
-sudo python -m venv env
-source env/bin/activate
-pip install .[drive]
-```
-
-### Step 3: Create the Virtual Storage
-
-Create the large file that will act as the flash drive's storage. Running in `screen` is recommended in case your SSH session is interrupted.
-
-```bash
-# Create storage directory
-sudo mkdir -p /var/blink_storage
-sudo chown pi:pi /var/blink_storage
-sudo chmod 755 /var/blink_storage
-
-# Create virtual drive image
-screen
-cd /var/blink_storage
-dd if=/dev/zero of=virtual_drive.img bs=1M count=32768 status=progress
-sudo chown pi:pi virtual_drive.img
-
-# Format the file with the FAT32 filesystem
-sudo mkfs.vfat virtual_drive.img
-```
-
-### Step 4: Install & Configure Samba (for Server Mode)
-
-```bash
-sudo apt install samba -y
-# Create the directory that will be shared
-sudo mkdir -p /var/blink_storage/share
-sudo chown pi:pi /var/blink_storage/share
-# Edit the Samba config file
-sudo nano /etc/samba/smb.conf
-```
-
-Add this share definition to the very bottom of the file:
-```ini
-[BlinkClips]
-comment = Blink Video Clips
-path = /var/blink_storage/share
-read only = no
-browsable = yes
-guest ok = yes
-```
-
-Save the file and restart Samba: `sudo systemctl restart smbd`.
-
-### Step 5: Enable USB Gadget Mode
 
 1. **Edit config.txt**
    ```bash
@@ -114,13 +53,74 @@ Save the file and restart Samba: `sudo systemctl restart smbd`.
    sudo reboot
    ```
 
-### Step 6: Configure and Test Storage Mode
+### Step 2: System Dependencies
 
 After reboot, SSH back in:
 
 ```bash
 ssh pi@blink-usb.local
+
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git python3 python3-pip screen cmake libboost-all-dev
 ```
+
+### Step 3: Install the Application
+
+```bash
+cd /opt
+sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
+# Install may take some time. Running in screen is recommended.
+screen
+cd blink-sync-brain
+sudo python -m venv env
+source env/bin/activate
+pip install .[drive]
+```
+
+### Step 4: Create the Virtual Storage
+
+Create the large file that will act as the flash drive's storage. Running in `screen` is recommended in case your SSH session is interrupted.
+
+```bash
+# Create storage directory
+sudo mkdir -p /var/blink_storage
+sudo chown pi:pi /var/blink_storage
+sudo chmod 755 /var/blink_storage
+
+# Create virtual drive image
+screen
+cd /var/blink_storage
+dd if=/dev/zero of=virtual_drive.img bs=1M count=32768 status=progress
+sudo chown pi:pi virtual_drive.img
+
+# Format the file with the FAT32 filesystem
+sudo mkfs.vfat virtual_drive.img
+```
+
+### Step 5: Install & Configure Samba (for Server Mode)
+
+```bash
+sudo apt install samba -y
+# Create the directory that will be shared
+sudo mkdir -p /var/blink_storage/share
+sudo chown pi:pi /var/blink_storage/share
+# Edit the Samba config file
+sudo nano /etc/samba/smb.conf
+```
+
+Add this share definition to the very bottom of the file:
+```ini
+[BlinkClips]
+comment = Blink Video Clips
+path = /var/blink_storage/share
+read only = no
+browsable = yes
+guest ok = yes
+```
+
+Save the file and restart Samba: `sudo systemctl restart smbd`.
+
+### Step 6: Configure and Test Storage Mode
 
 1. **Install Storage Mode Script**
    ```bash
