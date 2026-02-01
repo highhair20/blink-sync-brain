@@ -76,12 +76,13 @@ sudo mkfs.vfat -F 32 virtual_drive.img
 ### Step 4: Install the Application
 
 ```bash
-cd /opt
-sudo git clone https://github.com/highhair20/blink-sync-brain.git
+sudo mkdir -p /opt/blink-sync-brain
+sudo chown pi:pi /opt/blink-sync-brain
+git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
 # Install may take some time. Running in screen is recommended.
 screen
-cd blink-sync-brain
-sudo python -m venv env
+cd /opt/blink-sync-brain
+python -m venv env
 source env/bin/activate
 pip install .[drive]
 ```
@@ -187,9 +188,10 @@ sudo apt install -y libatlas-base-dev gfortran
 ### Step 3: Install the Application
 
 ```bash
-cd /opt
-sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
-cd blink-sync-brain
+sudo mkdir -p /opt/blink-sync-brain
+sudo chown pi:pi /opt/blink-sync-brain
+git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
+cd /opt/blink-sync-brain
 
 # Install full dependencies for video processing and face recognition
 pip install .[processor]
