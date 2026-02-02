@@ -18,32 +18,18 @@ Pi #1 emulates a USB flash drive for the Blink Sync Module. It switches between 
 ssh pi@blink-usb.local
 ```
 
-1. **Edit config.txt**
-   ```bash
-   sudo nano /boot/firmware/config.txt
-   ```
-   Append the following to the bottom of the file:
-   ```
-   # Enable USB gadget mode
-   dtoverlay=dwc2
-   ```
+The repo isn't cloned yet, so download and run the script directly:
 
-2. **Enable USB Gadget Module**
-   ```bash
-   sudo nano /etc/modules
-   ```
-   Add this line to the end of the file:
-   ```
-   dwc2
-   ```
-   **Note:** Do NOT add `g_mass_storage` here. It must be loaded with the `file=` parameter by the startup script, not at boot.
+```bash
+curl -fsSL https://raw.githubusercontent.com/highhair20/blink-sync-brain/main/scripts/drive/enable-usb-gadget.sh | sudo bash
+sudo reboot
+```
 
-3. **Reboot to Apply Changes**
-   ```bash
-   sudo reboot
-   ```
+The script appends `dtoverlay=dwc2` to `/boot/firmware/config.txt` and `dwc2` to `/etc/modules` (idempotently — safe to run twice).
 
-### Step 2: System Dependencies
+**Note:** Do NOT add `g_mass_storage` to `/etc/modules`. It must be loaded with the `file=` parameter by the startup script, not at boot.
+
+### Step 2: Clone the Repository
 
 After reboot, SSH back in:
 
@@ -51,43 +37,36 @@ After reboot, SSH back in:
 ssh pi@blink-usb.local
 
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git python3 python3-pip screen cmake libboost-all-dev
-```
+sudo apt install -y git
 
-### Step 3: Create the Virtual Storage
-
-Create the large file that will act as the flash drive's storage. Running in `screen` is recommended in case your SSH session is interrupted.
-
-```bash
-# Create storage directory
-sudo mkdir -p /var/blink_storage
-sudo chown pi:pi /var/blink_storage
-sudo chmod 755 /var/blink_storage
-
-# Create virtual drive image
-screen
-cd /var/blink_storage
-dd if=/dev/zero of=virtual_drive.img bs=1M count=32768 status=progress
-
-# Format the file with the FAT32 filesystem
-sudo mkfs.vfat -F 32 virtual_drive.img
-```
-
-### Step 4: Install the Application
-
-```bash
 sudo mkdir -p /opt/blink-sync-brain
 sudo chown pi:pi /opt/blink-sync-brain
 git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
-# Install may take some time. Running in screen is recommended.
-screen
-cd /opt/blink-sync-brain
-python -m venv env
-source env/bin/activate
-pip install .[drive]
 ```
 
-### Step 5: Test Storage Mode
+### Step 3: Install System Dependencies
+
+```bash
+sudo /opt/blink-sync-brain/scripts/drive/install-deps.sh
+```
+
+### Step 4: Create the Virtual Storage
+
+Creates a 32 GB FAT32 disk image that acts as the flash drive's storage. This takes a while — running in `screen` is recommended.
+
+```bash
+screen
+sudo /opt/blink-sync-brain/scripts/drive/create-virtual-storage.sh
+```
+
+### Step 5: Install the Application
+
+```bash
+screen
+/opt/blink-sync-brain/scripts/drive/install-app.sh
+```
+
+### Step 6: Test Storage Mode
 
 ```bash
 sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
@@ -125,51 +104,39 @@ Pi #2 pulls clips from the mounted drive over SSH using rsync:
 rsync -av pi@blink-usb.local:/mnt/blink_drive/ /var/blink_storage/videos/
 ```
 
-### Step 6: Create Systemd Service
+### Step 7: Create Systemd Service
 
 Install the service file that runs `start_storage_mode.sh` at boot:
 
 ```bash
-sudo cp /opt/blink-sync-brain/scripts/systemd/blink-drive.service /etc/systemd/system/
-```
-
-Enable and start the service, then reboot:
-```bash
-sudo systemctl enable --now blink-drive
+sudo /opt/blink-sync-brain/scripts/drive/install-service.sh
 sudo reboot
 ```
 
 ## Pi #2: Processor (Video & Face Recognition) Setup
 
-### Step 1: System Dependencies
+### Step 1: Clone the Repository
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git python3 python3-pip
+sudo apt install -y git
+
+sudo mkdir -p /opt/blink-sync-brain
+sudo chown pi:pi /opt/blink-sync-brain
+git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
 ```
 
-### Step 2: Install Video Processing Dependencies
+### Step 2: Install System Dependencies
 
 ```bash
-sudo apt install -y ffmpeg libgomp1
-
-# Build dependencies for dlib (required by face-recognition)
-sudo apt install -y cmake build-essential gfortran
-sudo apt install -y libblas-dev liblapack-dev libatlas-base-dev
+sudo /opt/blink-sync-brain/scripts/processor/install-deps.sh
 ```
 
 ### Step 3: Install the Application
 
 ```bash
-sudo mkdir -p /opt/blink-sync-brain
-sudo chown pi:pi /opt/blink-sync-brain
-git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
-# Install may take some time. Running in screen is recommended.
 screen
-cd /opt/blink-sync-brain
-python -m venv env
-source env/bin/activate
-pip install .[processor]
+/opt/blink-sync-brain/scripts/processor/install-app.sh
 ```
 
 ### Step 4: Configure the Processor
@@ -188,9 +155,7 @@ blink-processor start --config /opt/blink-sync-brain/configs/processor.yaml
 ### Step 5: Setup Storage Directories
 
 ```bash
-sudo mkdir -p /var/blink_storage/videos
-sudo mkdir -p /var/blink_storage/results
-sudo chown pi:pi /var/blink_storage
+sudo /opt/blink-sync-brain/scripts/processor/setup-storage.sh
 ```
 
 ### Step 6: Setup Face Recognition Database
@@ -208,8 +173,7 @@ mkdir -p ~/face_images
 ### Step 7: Create Systemd Service
 
 ```bash
-sudo cp /opt/blink-sync-brain/scripts/systemd/blink-processor.service /etc/systemd/system/
-sudo systemctl enable --now blink-processor
+sudo /opt/blink-sync-brain/scripts/processor/install-service.sh
 ```
 
 ## System Integration & Networking
