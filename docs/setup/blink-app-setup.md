@@ -12,247 +12,150 @@ This guide covers installing and configuring the Blink Sync Brain software on bo
 
 Pi #1 emulates a USB flash drive for the Blink Sync Module. It switches between "Storage Mode" (for Blink) and "Server Mode" (for Pi #2 to pull clips).
 
-### Step 1: System Dependencies
+### Step 1: Enable USB Gadget Mode
 
 ```bash
-ssh pi@braindrive.local
-
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y git python3 python3-pip screen cmake libboost-all-dev
+ssh pi@blink-usb.local
 ```
 
-### Step 2: Install the Application
+The repo isn't cloned yet, so download and run the script directly:
 
 ```bash
-cd /opt
-sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
-# Install may take some time. Running in screen is recommended.
-screen
-cd blink-sync-brain
-sudo python -m venv env
-source env/bin/activate
-pip install .[drive]
+curl -fsSL https://raw.githubusercontent.com/highhair20/blink-sync-brain/main/scripts/drive/enable-usb-gadget.sh | sudo bash
+sudo reboot
 ```
 
-### Step 3: Create the Virtual Storage
+The script appends `dtoverlay=dwc2` to `/boot/firmware/config.txt` and `dwc2` to `/etc/modules` (idempotently — safe to run twice).
 
-Create the large file that will act as the flash drive's storage. Running in `screen` is recommended in case your SSH session is interrupted.
+**Note:** Do NOT add `g_mass_storage` to `/etc/modules`. It must be loaded with the `file=` parameter by the startup script, not at boot.
 
-```bash
-# Create storage directory
-sudo mkdir -p /var/blink_storage
-sudo chown pi:pi /var/blink_storage
-sudo chmod 755 /var/blink_storage
-
-# Create virtual drive image
-screen
-cd /var/blink_storage
-dd if=/dev/zero of=virtual_drive.img bs=1M count=32768 status=progress
-sudo chown pi:pi virtual_drive.img
-
-# Format the file with the FAT32 filesystem
-sudo mkfs.vfat virtual_drive.img
-```
-
-### Step 4: Install & Configure Samba (for Server Mode)
-
-```bash
-sudo apt install samba -y
-# Create the directory that will be shared
-sudo mkdir -p /var/blink_storage/share
-sudo chown pi:pi /var/blink_storage/share
-# Edit the Samba config file
-sudo nano /etc/samba/smb.conf
-```
-
-Add this share definition to the very bottom of the file:
-```ini
-[BlinkClips]
-comment = Blink Video Clips
-path = /var/blink_storage/share
-read only = no
-browsable = yes
-guest ok = yes
-```
-
-Save the file and restart Samba: `sudo systemctl restart smbd`.
-
-### Step 5: Enable USB Gadget Mode
-
-1. **Edit config.txt**
-   ```bash
-   sudo nano /boot/firmware/config.txt
-   ```
-   Append the following to the bottom of the file:
-   ```
-   # Enable USB gadget mode
-   dtoverlay=dwc2
-   ```
-
-2. **Add dwc2 to the kernel command line**
-   ```bash
-   # Edit cmdline.txt — this file is a SINGLE line, append to the END of the existing line
-   sudo nano /boot/firmware/cmdline.txt
-   ```
-   Append `modules-load=dwc2` to the **end** of the existing line (do NOT create a new line):
-   ```
-   ... rootwait modules-load=dwc2
-   ```
-
-3. **Enable USB Gadget Module**
-   ```bash
-   sudo nano /etc/modules
-   ```
-   Add this line to the end of the file:
-   ```
-   dwc2
-   ```
-   **Note:** Do NOT add `g_mass_storage` here. It must be loaded with the `file=` parameter by the startup script, not at boot.
-
-4. **Reboot to Apply Changes**
-   ```bash
-   sudo reboot
-   ```
-
-### Step 6: Configure and Test Storage Mode
+### Step 2: Clone the Repository
 
 After reboot, SSH back in:
 
 ```bash
-ssh pi@braindrive.local
+ssh pi@blink-usb.local
+
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git
+
+sudo mkdir -p /opt/blink-sync-brain
+sudo chown pi:pi /opt/blink-sync-brain
+git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
 ```
 
-1. **Install Storage Mode Script**
-   ```bash
-   sudo cp /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh /opt/blink-sync-brain/start_storage_mode.sh
-   sudo chmod +x /opt/blink-sync-brain/start_storage_mode.sh
-   ```
+### Step 3: Install System Dependencies
 
-2. **Create Configuration File**
-   ```bash
-   sudo mkdir -p /etc/blink-sync-brain
-   sudo cp /opt/blink-sync-brain/configs/drive.yaml /etc/blink-sync-brain/config.yaml
-   sudo nano /etc/blink-sync-brain/config.yaml
-   ```
+```bash
+sudo /opt/blink-sync-brain/scripts/drive/install-deps.sh
+```
 
-   The configuration should look like this:
-   ```yaml
-   storage:
-     virtual_drive_path: "/var/blink_storage/virtual_drive.img"
-     virtual_drive_size_gb: 32
-     cleanup_threshold: 85.0
-     retention_days: 30
-     monitor_interval: 300
+### Step 4: Create the Virtual Storage
 
-   logging:
-     level: "INFO"
-   ```
+Creates a 32 GB FAT32 disk image that acts as the flash drive's storage. This takes a while — running in `screen` is recommended.
 
-   **Important**: Update `virtual_drive_path` and `virtual_drive_size_gb` to match your setup.
+```bash
+screen
+sudo /opt/blink-sync-brain/scripts/drive/create-virtual-storage.sh
+```
 
-3. **Test Storage Mode**
-   ```bash
-   sudo /opt/blink-sync-brain/start_storage_mode.sh
+### Step 5: Install the Application
 
-   # Verify
-   lsmod | grep g_mass_storage
-   dmesg | tail -10
-   lsusb
-   ```
+```bash
+screen
+/opt/blink-sync-brain/scripts/drive/install-app.sh
+```
+
+### Step 6: Test Storage Mode
+
+```bash
+sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
+
+# Verify
+lsmod | grep g_mass_storage
+dmesg | tail -10
+lsusb
+```
+
+The defaults in `configs/drive.yaml` match a standard setup (32 GB drive at `/var/blink_storage/virtual_drive.img`). To override them, pass a config file:
+
+```bash
+blink-drive start --config /path/to/config.yaml
+```
+
+### Mode Switching Scripts
+
+Pi #1 has two mode scripts in `scripts/drive/`:
+
+- **`start_storage_mode.sh`** — Loads the `g_mass_storage` kernel module, making the virtual drive visible to the Blink Sync Module as a USB flash drive.
+- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the virtual drive at `/mnt/blink_drive` so Pi #2 can pull clips via rsync over SSH.
+
+To switch modes manually:
+```bash
+# Switch to Server Mode (Pi #2 can pull clips)
+sudo /opt/blink-sync-brain/scripts/drive/start_server_mode.sh
+
+# Switch back to Storage Mode (Blink can write clips)
+sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
+```
+
+Pi #2 pulls clips from the mounted drive over SSH using rsync:
+```bash
+rsync -av pi@blink-usb.local:/mnt/blink_drive/ /var/blink_storage/videos/
+```
 
 ### Step 7: Create Systemd Service
 
-You have two options:
+Install the service file that runs `start_storage_mode.sh` at boot:
 
-**Option A: Simple Shell Script Service (Recommended)**
 ```bash
-sudo cp /opt/blink-sync-brain/scripts/systemd/blink-drive-simple.service /etc/systemd/system/blink-drive.service
-```
-This service uses the `start_storage_mode.sh` script directly.
-
-**Option B: Python Application Service**
-```bash
-sudo cp /opt/blink-sync-brain/scripts/systemd/blink-drive.service /etc/systemd/system/
-```
-This service uses the full Python application with `blink-drive start`.
-
-**Note**: Option A is simpler and more reliable for basic USB gadget functionality.
-
-Enable and start the service, then reboot:
-```bash
-sudo systemctl enable --now blink-drive
+sudo /opt/blink-sync-brain/scripts/drive/install-service.sh
 sudo reboot
 ```
 
 ## Pi #2: Processor (Video & Face Recognition) Setup
 
-### Step 1: System Dependencies
+### Step 1: Clone the Repository
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git python3 python3-pip
+sudo apt install -y git
+
+sudo mkdir -p /opt/blink-sync-brain
+sudo chown pi:pi /opt/blink-sync-brain
+git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
 ```
 
-### Step 2: Install Video Processing Dependencies
+### Step 2: Install System Dependencies
 
 ```bash
-# Video processing
-sudo apt install -y ffmpeg libsm6 libxext6 libxrender-dev libgomp1
-
-# OpenCV dependencies
-sudo apt install -y libatlas-base-dev libhdf5-dev libhdf5-serial-dev
-sudo apt install -y libjasper-dev libqtcore4 libqtgui4 libqt4-test
-sudo apt install -y libavcodec-dev libavformat-dev libswscale-dev
-sudo apt install -y libv4l-dev libxvidcore-dev libx264-dev
-sudo apt install -y libgtk-3-dev libtiff5-dev libjpeg-dev libpng-dev
-sudo apt install -y libtiff-dev libdc1394-22-dev
-
-# Face recognition / dlib dependencies
-sudo apt install -y cmake build-essential
-sudo apt install -y libdlib-dev libblas-dev liblapack-dev
-sudo apt install -y libatlas-base-dev gfortran
+sudo /opt/blink-sync-brain/scripts/processor/install-deps.sh
 ```
 
 ### Step 3: Install the Application
 
 ```bash
-cd /opt
-sudo git clone https://github.com/YOUR_USERNAME/blink-sync-brain.git
-cd blink-sync-brain
-
-# Install full dependencies for video processing and face recognition
-pip install .[processor]
+screen
+/opt/blink-sync-brain/scripts/processor/install-app.sh
 ```
 
 ### Step 4: Configure the Processor
 
+The repo includes `configs/processor.yaml` with Pi Zero 2 W–tuned defaults (lower concurrency, higher face confidence). Review and edit it if needed:
+
 ```bash
-sudo mkdir -p /etc/blink-sync-brain
-sudo cp configs/processor.yaml /etc/blink-sync-brain/config.yaml
-sudo nano /etc/blink-sync-brain/config.yaml
+nano /opt/blink-sync-brain/configs/processor.yaml
 ```
 
-Update the configuration for video processing:
-```yaml
-storage:
-  video_directory: "/var/blink_storage/videos"
-  results_directory: "/var/blink_storage/results"
-
-processing:
-  frame_skip: 3  # Lower for better accuracy
-  max_concurrent_videos: 1  # Lower for Pi Zero 2 W
-
-face_recognition:
-  database_path: "/var/blink_storage/face_database.pkl"
-  confidence_threshold: 0.7  # Higher for better accuracy
+Pass it when starting the processor:
+```bash
+blink-processor start --config /opt/blink-sync-brain/configs/processor.yaml
 ```
 
 ### Step 5: Setup Storage Directories
 
 ```bash
-sudo mkdir -p /var/blink_storage/videos
-sudo mkdir -p /var/blink_storage/results
-sudo chown pi:pi /var/blink_storage
+sudo /opt/blink-sync-brain/scripts/processor/setup-storage.sh
 ```
 
 ### Step 6: Setup Face Recognition Database
@@ -265,19 +168,12 @@ mkdir -p ~/face_images
 # Image names should be: person_name.jpg
 
 # TODO: Face database setup command is not yet implemented.
-# For now, manage face images manually in the face_images directory.
-```
-
-Test face recognition:
-```bash
-blink-processor process-video /path/to/test_video.mp4 --output-dir /var/blink_storage/results
 ```
 
 ### Step 7: Create Systemd Service
 
 ```bash
-sudo cp /opt/blink-sync-brain/scripts/systemd/blink-processor.service /etc/systemd/system/
-sudo systemctl enable --now blink-processor
+sudo /opt/blink-sync-brain/scripts/processor/install-service.sh
 ```
 
 ## System Integration & Networking
@@ -333,6 +229,12 @@ done
 ## Troubleshooting
 
 ### USB Gadget Issues
+
+As a first step, run the built-in diagnostic script. It checks modules, the virtual drive file, USB gadget configfs, kernel messages, and the systemd service:
+
+```bash
+sudo /opt/blink-sync-brain/scripts/drive/diagnose_usb_gadget.sh
+```
 
 1. **Gadget Not Recognized — Complete Diagnostic**
    ```bash
@@ -401,10 +303,9 @@ done
 
    # Check if the command exists
    which blink-drive
-   which start_storage_mode.sh
 
    # Test the command manually
-   sudo /opt/blink-sync-brain/start_storage_mode.sh
+   sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
 
    # Reload systemd and restart service
    sudo systemctl daemon-reload

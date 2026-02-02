@@ -57,7 +57,7 @@ Entry points are registered in `pyproject.toml` under `[project.scripts]`.
 
 Shared business logic used by both roles:
 
-- `usb_gadget.py` — `USBGadgetManager`: virtual drive image creation, USB gadget lifecycle, mode switching (Storage Mode for Blink access vs Server Mode for processor access via Samba)
+- `usb_gadget.py` — `USBGadgetManager`: virtual drive image creation, USB gadget lifecycle, mode switching (Storage Mode for Blink access vs Server Mode for processor access via rsync/SSH)
 - `video_processor.py` — `VideoProcessor`: frame extraction, face recognition integration, directory monitoring, processing queue
 - `face_recognition.py` — `FaceRecognitionEngine`: face detection/encoding via `face_recognition` lib, known-face database (pickled numpy arrays), confidence scoring
 - `storage_manager.py` — `StorageManager`: disk usage monitoring, retention policy enforcement (default 30 days, 80% threshold)

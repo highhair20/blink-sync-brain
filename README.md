@@ -6,13 +6,18 @@ A Raspberry Pi-based system that extends Blink security cameras with face recogn
 
 Blink cameras don't provide local storage or advanced video analysis. This project solves that by intercepting the Blink Sync Module's USB connection using a virtual USB gadget, capturing clips locally, and running machine learning-based face recognition on a dedicated processor Pi.
 
+## 📖 Getting Started
+
+- **[Hardware & OS Setup](./docs/setup/pi-zero-setup.md)** — Flashing SD cards, first boot, SSH, expand filesystem
+- **[Application Setup](./docs/setup/blink-app-setup.md)** — Software install, USB gadget config, processor config, systemd, networking, troubleshooting
+
 ### Architecture
 
 | | Pi #1 — Drive (USB Gadget) | Pi #2 — Processor (Video & Face Recognition) |
 |---|---|---|
 | **Role** | Emulates a USB flash drive to the Blink Sync Module | Processes intercepted video clips and performs face recognition |
 | **Key Components** | `USBGadgetManager` | `VideoProcessor`, `FaceRecognitionEngine` |
-| **Capabilities** | Virtual 32GB FAT32 drive image, mode switching between Storage Mode (Blink access) and Server Mode (processor access), Samba file sharing, storage monitoring | Frame extraction, face detection and matching against a known-faces database, batch processing, result storage and metadata tracking |
+| **Capabilities** | Virtual 32GB FAT32 drive image, mode switching between Storage Mode (Blink access) and Server Mode (processor access), rsync-over-SSH file transfer, storage monitoring | Frame extraction, face detection and matching against a known-faces database, batch processing, result storage and metadata tracking |
 
 ### Data Flow
 
@@ -30,11 +35,6 @@ Blink cameras don't provide local storage or advanced video analysis. This proje
 - **structlog** for structured JSON logging
 - **YAML configuration** with environment variable overrides
 - **systemd services** for automatic startup on each Pi
-
-## 📖 Documentation
-
-- **[Hardware & OS Setup](./docs/setup/pi-zero-setup.md)** — Flashing SD cards, first boot, SSH, expand filesystem
-- **[Application Setup](./docs/setup/pi-brain-drive-setup.md)** — Software install, USB gadget config, processor config, systemd, networking, troubleshooting
 
 ## 🚀 Features
 
@@ -68,13 +68,8 @@ blink-sync-brain/
 └── docs/
     └── setup/
         ├── pi-zero-setup.md      # Hardware & OS setup
-        └── pi-brain-drive-setup.md # Application setup
+        └── blink-app-setup.md # Application setup
 ```
-
-## 🔗 Quick Links
-
-- **Hardware & OS Setup**: [Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)
-- **Application Setup**: [Application Setup Guide](./docs/setup/pi-brain-drive-setup.md)
 
 ## 🍓 Roles and CLIs
 
@@ -110,4 +105,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-*For detailed documentation, see the [Hardware & OS Setup](./docs/setup/pi-zero-setup.md) and [Application Setup](./docs/setup/pi-brain-drive-setup.md) guides.*
+*For detailed documentation, see the [Hardware & OS Setup](./docs/setup/pi-zero-setup.md) and [Application Setup](./docs/setup/blink-app-setup.md) guides.*
