@@ -87,39 +87,22 @@ source env/bin/activate
 pip install .[drive]
 ```
 
-### Step 5: Configure and Test Storage Mode
+### Step 5: Test Storage Mode
 
-1. **Create Configuration File**
-   ```bash
-   sudo mkdir -p /etc/blink-sync-brain
-   sudo cp /opt/blink-sync-brain/configs/drive.yaml /etc/blink-sync-brain/config.yaml
-   sudo nano /etc/blink-sync-brain/config.yaml
-   ```
+```bash
+sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
 
-   The configuration should look like this:
-   ```yaml
-   storage:
-     virtual_drive_path: "/var/blink_storage/virtual_drive.img"
-     virtual_drive_size_gb: 32
-     cleanup_threshold: 85.0
-     retention_days: 30
-     monitor_interval: 300
+# Verify
+lsmod | grep g_mass_storage
+dmesg | tail -10
+lsusb
+```
 
-   logging:
-     level: "INFO"
-   ```
+The defaults in `configs/drive.yaml` match a standard setup (32 GB drive at `/var/blink_storage/virtual_drive.img`). To override them, pass a config file:
 
-   **Important**: Update `virtual_drive_path` and `virtual_drive_size_gb` to match your setup.
-
-2. **Test Storage Mode**
-   ```bash
-   sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
-
-   # Verify
-   lsmod | grep g_mass_storage
-   dmesg | tail -10
-   lsusb
-   ```
+```bash
+blink-drive start --config /path/to/config.yaml
+```
 
 ### Mode Switching Scripts
 
@@ -199,25 +182,15 @@ pip install .[processor]
 
 ### Step 4: Configure the Processor
 
+The repo includes `configs/processor.yaml` with Pi Zero 2 W–tuned defaults (lower concurrency, higher face confidence). Review and edit it if needed:
+
 ```bash
-sudo mkdir -p /etc/blink-sync-brain
-sudo cp configs/processor.yaml /etc/blink-sync-brain/config.yaml
-sudo nano /etc/blink-sync-brain/config.yaml
+nano /opt/blink-sync-brain/configs/processor.yaml
 ```
 
-Update the configuration for video processing:
-```yaml
-storage:
-  video_directory: "/var/blink_storage/videos"
-  results_directory: "/var/blink_storage/results"
-
-processing:
-  frame_skip: 3  # Lower for better accuracy
-  max_concurrent_videos: 1  # Lower for Pi Zero 2 W
-
-face_recognition:
-  database_path: "/var/blink_storage/face_database.pkl"
-  confidence_threshold: 0.7  # Higher for better accuracy
+Pass it when starting the processor:
+```bash
+blink-processor start --config /opt/blink-sync-brain/configs/processor.yaml
 ```
 
 ### Step 5: Setup Storage Directories

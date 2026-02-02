@@ -6,6 +6,11 @@ A Raspberry Pi-based system that extends Blink security cameras with face recogn
 
 Blink cameras don't provide local storage or advanced video analysis. This project solves that by intercepting the Blink Sync Module's USB connection using a virtual USB gadget, capturing clips locally, and running machine learning-based face recognition on a dedicated processor Pi.
 
+## 📖 Getting Started
+
+- **[Hardware & OS Setup](./docs/setup/pi-zero-setup.md)** — Flashing SD cards, first boot, SSH, expand filesystem
+- **[Application Setup](./docs/setup/blink-app-setup.md)** — Software install, USB gadget config, processor config, systemd, networking, troubleshooting
+
 ### Architecture
 
 | | Pi #1 — Drive (USB Gadget) | Pi #2 — Processor (Video & Face Recognition) |
@@ -30,11 +35,6 @@ Blink cameras don't provide local storage or advanced video analysis. This proje
 - **structlog** for structured JSON logging
 - **YAML configuration** with environment variable overrides
 - **systemd services** for automatic startup on each Pi
-
-## 📖 Documentation
-
-- **[Hardware & OS Setup](./docs/setup/pi-zero-setup.md)** — Flashing SD cards, first boot, SSH, expand filesystem
-- **[Application Setup](./docs/setup/blink-app-setup.md)** — Software install, USB gadget config, processor config, systemd, networking, troubleshooting
 
 ## 🚀 Features
 
@@ -70,11 +70,6 @@ blink-sync-brain/
         ├── pi-zero-setup.md      # Hardware & OS setup
         └── blink-app-setup.md # Application setup
 ```
-
-## 🔗 Quick Links
-
-- **Hardware & OS Setup**: [Pi Zero Setup Guide](./docs/setup/pi-zero-setup.md)
-- **Application Setup**: [Application Setup Guide](./docs/setup/blink-app-setup.md)
 
 ## 🍓 Roles and CLIs
 
