@@ -46,31 +46,6 @@ Blink cameras don't provide local storage or advanced video analysis. This proje
 - **Real-time Notifications**: Alert system for unknown faces and events
 - **Notifications**: Alert system for unknown faces via email, Pushbullet, or webhooks
 
-## 📁 Project Structure
-
-```
-blink-sync-brain/
-├── configs/
-│   ├── drive.yaml                # Example config for Pi #1 (Drive)
-│   └── processor.yaml            # Example config for Pi #2 (Processor)
-├── scripts/
-│   ├── drive/start_storage_mode.sh  # USB gadget storage mode script for Pi #1
-│   └── systemd/
-│       ├── blink-drive.service   # Systemd unit for Pi #1
-│       └── blink-processor.service # Systemd unit for Pi #2
-├── src/
-│   └── blink_sync_brain/
-│       ├── core/                 # Shared business logic (USB gadget, video, face recognition, storage)
-│       ├── drive/                # Role-specific code for Pi #1 (Drive)
-│       ├── processor/            # Role-specific code for Pi #2 (Processor)
-│       ├── config/               # Settings
-│       └── models/               # Data models
-└── docs/
-    └── setup/
-        ├── pi-zero-setup.md      # Hardware & OS setup
-        └── blink-app-setup.md # Application setup
-```
-
 ## 🍓 Roles and CLIs
 
 - Pi #1 Drive CLI: `blink-drive`
@@ -83,12 +58,12 @@ blink-sync-brain/
 ```bash
 # On Pi #1 (Drive)
 pip install .[drive]
-sudo cp scripts/systemd/blink-drive.service /etc/systemd/system/
+sudo cp scripts/drive/systemd/blink-drive.service /etc/systemd/system/
 sudo systemctl enable --now blink-drive
 
 # On Pi #2 (Processor)
 pip install .[processor]
-sudo cp scripts/systemd/blink-processor.service /etc/systemd/system/
+sudo cp scripts/processor/systemd/blink-processor.service /etc/systemd/system/
 sudo systemctl enable --now blink-processor
 
 # Ad-hoc processing on Pi #2
