@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/env blink-processor start --config /etc/blink-sync-brain/config.yaml
+ExecStart=/usr/bin/env blink-processor start --config /opt/blink-sync-brain/configs/processor.yaml
 Restart=on-failure
 
 [Install]

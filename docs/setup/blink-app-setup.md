@@ -151,21 +151,11 @@ sudo apt install -y git python3 python3-pip
 ### Step 2: Install Video Processing Dependencies
 
 ```bash
-# Video processing
-sudo apt install -y ffmpeg libsm6 libxext6 libxrender-dev libgomp1
+sudo apt install -y ffmpeg libgomp1
 
-# OpenCV dependencies
-sudo apt install -y libatlas-base-dev libhdf5-dev libhdf5-serial-dev
-sudo apt install -y libjasper-dev libqtcore4 libqtgui4 libqt4-test
-sudo apt install -y libavcodec-dev libavformat-dev libswscale-dev
-sudo apt install -y libv4l-dev libxvidcore-dev libx264-dev
-sudo apt install -y libgtk-3-dev libtiff5-dev libjpeg-dev libpng-dev
-sudo apt install -y libtiff-dev libdc1394-22-dev
-
-# Face recognition / dlib dependencies
-sudo apt install -y cmake build-essential
-sudo apt install -y libdlib-dev libblas-dev liblapack-dev
-sudo apt install -y libatlas-base-dev gfortran
+# Build dependencies for dlib (required by face-recognition)
+sudo apt install -y cmake build-essential gfortran
+sudo apt install -y libblas-dev liblapack-dev libatlas-base-dev
 ```
 
 ### Step 3: Install the Application
@@ -174,9 +164,11 @@ sudo apt install -y libatlas-base-dev gfortran
 sudo mkdir -p /opt/blink-sync-brain
 sudo chown pi:pi /opt/blink-sync-brain
 git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
+# Install may take some time. Running in screen is recommended.
+screen
 cd /opt/blink-sync-brain
-
-# Install full dependencies for video processing and face recognition
+python -m venv env
+source env/bin/activate
 pip install .[processor]
 ```
 
@@ -211,12 +203,6 @@ mkdir -p ~/face_images
 # Image names should be: person_name.jpg
 
 # TODO: Face database setup command is not yet implemented.
-# For now, manage face images manually in the face_images directory.
-```
-
-Test face recognition:
-```bash
-blink-processor process-video /path/to/test_video.mp4 --output-dir /var/blink_storage/results
 ```
 
 ### Step 7: Create Systemd Service
