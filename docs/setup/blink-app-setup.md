@@ -25,7 +25,7 @@ curl -fsSL https://raw.githubusercontent.com/highhair20/blink-sync-brain/main/sc
 sudo reboot
 ```
 
-The script adds `dtoverlay=dwc2` under the `[all]` section in `/boot/firmware/config.txt` and `dwc2` to `/etc/modules` (idempotently — safe to run twice).
+The script adds `dtoverlay=dwc2,dr_mode=peripheral` under the `[all]` section in `/boot/firmware/config.txt` and `dwc2` to `/etc/modules` (idempotently — safe to run twice). The `dr_mode=peripheral` is required for the Pi to act as a USB device rather than a USB host.
 
 **Note:** Do NOT add `g_mass_storage` to `/etc/modules`. It must be loaded with the `file=` parameter by the startup script, not at boot.
 
