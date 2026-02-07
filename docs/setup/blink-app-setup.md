@@ -81,10 +81,16 @@ blink-drive start --config /path/to/config.yaml
 
 ### Mode Switching Scripts
 
-Pi #1 has two mode scripts in `scripts/drive/`:
+Pi #1 has mode scripts in `scripts/drive/`:
 
 - **`start_storage_mode.sh`** — Loads the `g_mass_storage` kernel module, making the virtual drive visible to the Blink Sync Module as a USB flash drive.
 - **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the virtual drive at `/mnt/blink_drive` so Pi #2 can pull clips via rsync over SSH.
+- **`status.sh`** — Shows which mode the Pi is currently in.
+
+To check the current mode:
+```bash
+/opt/blink-sync-brain/scripts/drive/status.sh
+```
 
 To switch modes manually:
 ```bash
