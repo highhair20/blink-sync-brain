@@ -12,26 +12,7 @@ This guide covers installing and configuring the Blink Sync Brain software on bo
 
 Pi #1 emulates a USB flash drive for the Blink Sync Module. It switches between "Storage Mode" (for Blink) and "Server Mode" (for Pi #2 to pull clips).
 
-### Step 1: Enable USB Gadget Mode
-
-```bash
-ssh pi@blink-usb.local
-```
-
-The repo isn't cloned yet, so download and run the script directly:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/highhair20/blink-sync-brain/main/scripts/drive/enable-usb-gadget.sh | sudo bash
-sudo reboot
-```
-
-The script adds `dtoverlay=dwc2,dr_mode=peripheral` under the `[all]` section in `/boot/firmware/config.txt` and `dwc2` to `/etc/modules` (idempotently — safe to run twice). The `dr_mode=peripheral` is required for the Pi to act as a USB device rather than a USB host.
-
-**Note:** Do NOT add `g_mass_storage` to `/etc/modules`. It must be loaded with the `file=` parameter by the startup script, not at boot.
-
-### Step 2: Clone the Repository
-
-After reboot, SSH back in:
+### Step 1: Clone the Repository
 
 ```bash
 ssh pi@blink-usb.local
@@ -44,9 +25,24 @@ sudo chown pi:pi /opt/blink-sync-brain
 git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
 ```
 
-### Step 3: Install System Dependencies
+### Step 2: Enable USB Gadget Mode
 
 ```bash
+sudo /opt/blink-sync-brain/scripts/drive/enable-usb-gadget.sh
+sudo reboot
+```
+
+The script adds `dtoverlay=dwc2,dr_mode=peripheral` under the `[all]` section in `/boot/firmware/config.txt` and `dwc2` to `/etc/modules` (idempotently — safe to run twice). The `dr_mode=peripheral` is required for the Pi to act as a USB device rather than a USB host.
+
+**Note:** Do NOT add `g_mass_storage` to `/etc/modules`. It must be loaded with the `file=` parameter by the startup script, not at boot.
+
+### Step 3: Install System Dependencies
+
+After reboot, SSH back in:
+
+```bash
+ssh pi@blink-usb.local
+
 sudo /opt/blink-sync-brain/scripts/drive/install-deps.sh
 ```
 
