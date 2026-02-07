@@ -12,9 +12,6 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 - **Raspberry Pi Zero 2 W** (2 units)
 - **MicroSD Cards** (64GB+ recommended, Class 10 or higher)
 - **Power Supplies** (5V/2.5A Micro USB power supplies)
-- **USB-A to Micro USB cables** (optional, for keyboard)
-- **Micro HDMI to HDMI cables** (optional, for monitor)
-- **USB keyboard** (optional)
 
 ### Additional for blink-usb (Pi #1 — USB Gadget):
 - **USB-A to Micro USB cable** (to connect to Blink Sync Module)
