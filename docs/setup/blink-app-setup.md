@@ -126,6 +126,16 @@ ssh pi@blink-usb.local
 
 Should output: `Storage Mode (Blink can write)`
 
+### Step 9: Connect to Blink Sync Module
+
+1. Connect the Pi's **USB** (data) port to the Blink Sync Module using a USB-A to Micro USB cable
+2. Make sure the Pi is also powered via the **PWR** port — don't rely on power from the Sync Module
+3. In the Blink app, go to **Sync Module > Local Storage** — it should show a USB drive detected
+4. If prompted to format the drive, allow it — Blink needs its own filesystem structure
+5. Enable local storage if not already enabled
+
+Once configured, Blink will save clips to the virtual drive.
+
 ## Pi #2: Processor (Video & Face Recognition) Setup
 
 ### Step 1: Clone the Repository
