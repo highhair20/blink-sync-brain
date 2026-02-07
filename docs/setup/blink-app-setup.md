@@ -115,6 +115,17 @@ sudo /opt/blink-sync-brain/scripts/drive/install-service.sh
 sudo reboot
 ```
 
+### Step 8: Verify Storage Mode
+
+After reboot, SSH back in and confirm the Pi started in Storage Mode:
+
+```bash
+ssh pi@blink-usb.local
+/opt/blink-sync-brain/scripts/drive/status.sh
+```
+
+Should output: `Storage Mode (Blink can write)`
+
 ## Pi #2: Processor (Video & Face Recognition) Setup
 
 ### Step 1: Clone the Repository
