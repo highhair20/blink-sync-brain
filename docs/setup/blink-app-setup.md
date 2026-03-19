@@ -10,7 +10,7 @@ This guide covers installing and configuring the Blink Sync Brain software on bo
 
 ## Pi #1: Drive (USB Gadget) Setup
 
-Pi #1 emulates a USB flash drive for the Blink Sync Module. It switches between "Storage Mode" (for Blink) and "Server Mode" (for Pi #2 to pull clips).
+Pi #1 emulates a USB flash drive for the Blink Sync Module. It runs in "Storage Mode" permanently — Blink always has its drive. A background file watcher detects new clips and pushes them to Pi #2 automatically over SSH, so no mode switching is required.
 
 ### Step 1: Clone the Repository
 
@@ -79,54 +79,91 @@ The defaults in `configs/drive.yaml` match a standard setup (32 GB drive at `/va
 blink-drive start --config /path/to/config.yaml
 ```
 
-### Mode Switching Scripts
+### Step 7: Configure the File Watcher
 
-Pi #1 has mode scripts in `scripts/drive/`:
+The file watcher runs on Pi #1 and pushes new clips to Pi #2 automatically. It shadow-mounts the virtual drive image read-only (alongside `g_mass_storage`) to detect new files without interrupting Blink's write access.
 
-- **`start_storage_mode.sh`** — Loads the `g_mass_storage` kernel module, making the virtual drive visible to the Blink Sync Module as a USB flash drive.
-- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the virtual drive at `/mnt/blink_drive` so Pi #2 can pull clips via rsync over SSH.
-- **`status.sh`** — Shows which mode the Pi is currently in.
+**7a. Set Pi #2's address in the config:**
 
-To check the current mode:
 ```bash
-/opt/blink-sync-brain/scripts/drive/status.sh
+nano /opt/blink-sync-brain/configs/drive.yaml
 ```
 
-To switch modes manually:
-```bash
-# Switch to Server Mode (Pi #2 can pull clips)
-sudo /opt/blink-sync-brain/scripts/drive/start_server_mode.sh
+Set `processor_host` to Pi #2's IP or hostname:
 
-# Switch back to Storage Mode (Blink can write clips)
-sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
+```yaml
+watcher:
+  processor_host: "192.168.1.201"   # Pi #2 IP or hostname
+  processor_user: "pi"
+  processor_video_path: "/var/blink_storage/videos"
+  ssh_key_path: "/home/pi/.ssh/id_rsa"
 ```
 
-Pi #2 pulls clips from the mounted drive over SSH using rsync:
+**7b. Set up SSH key access from Pi #1 to Pi #2:**
+
+Pi #1 needs to rsync to Pi #2 without a password prompt. Run this on Pi #1:
+
 ```bash
-rsync -av pi@blink-usb.local:/mnt/blink_drive/ /var/blink_storage/videos/
+ssh-keygen -t rsa -f /home/pi/.ssh/id_rsa -N ""
+ssh-copy-id -i /home/pi/.ssh/id_rsa.pub pi@192.168.1.201
 ```
 
-### Step 7: Create Systemd Service
+Verify it works:
 
-Install the service file that runs `start_storage_mode.sh` at boot:
+```bash
+ssh pi@192.168.1.201 "echo SSH OK"
+```
+
+### Step 8: Create Systemd Services
+
+Install both service files — the drive service (Storage Mode at boot) and the watcher service (automatic clip transfer):
 
 ```bash
 sudo /opt/blink-sync-brain/scripts/drive/install-service.sh
+
+sudo cp /opt/blink-sync-brain/scripts/drive/systemd/blink-watcher.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable blink-watcher
 sudo reboot
 ```
 
-### Step 8: Verify Storage Mode
+### Mode Switching Scripts
 
-After reboot, SSH back in and confirm the Pi started in Storage Mode:
+The mode scripts in `scripts/drive/` are still available for manual use or diagnostics:
+
+- **`start_storage_mode.sh`** — Loads `g_mass_storage`, making the virtual drive visible to Blink.
+- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the drive at `/mnt/blink_drive` for manual rsync access.
+- **`status.sh`** — Shows the current mode.
+
+```bash
+# Check current mode
+/opt/blink-sync-brain/scripts/drive/status.sh
+
+# Manual mode switch (stops automatic watcher — use for diagnostics only)
+sudo systemctl stop blink-watcher
+sudo /opt/blink-sync-brain/scripts/drive/start_server_mode.sh
+rsync -av /mnt/blink_drive/ pi@192.168.1.201:/var/blink_storage/videos/
+sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
+sudo systemctl start blink-watcher
+```
+
+### Step 9: Verify Services After Reboot
+
+After reboot, SSH back in and confirm both services are running:
 
 ```bash
 ssh pi@blink-usb.local
+
+# Storage Mode should be active
 /opt/blink-sync-brain/scripts/drive/status.sh
+# Expected: Storage Mode (Blink can write)
+
+# Watcher service should be running
+sudo systemctl status blink-watcher
+sudo journalctl -u blink-watcher -f
 ```
 
-Should output: `Storage Mode (Blink can write)`
-
-### Step 9: Connect to Blink Sync Module
+### Step 10: Connect to Blink Sync Module
 
 1. Connect the Pi's **USB** (data) port to the Blink Sync Module using a USB-A to Micro USB cable
 2. Make sure the Pi is also powered via the **PWR** port — don't rely on power from the Sync Module
@@ -223,30 +260,43 @@ sudo nmcli connection up "Wi-Fi"
 
 ### Setup SSH Key Access Between Pis
 
+Pi #1 pushes clips to Pi #2 via rsync, so Pi #1 needs passwordless SSH access to Pi #2. Run this on Pi #1:
+
 ```bash
-# On each Pi, generate SSH key and copy to the other
-ssh-keygen -t rsa -b 4096
-ssh-copy-id pi@192.168.1.201  # or .200 from Pi #2
+ssh-keygen -t rsa -f /home/pi/.ssh/id_rsa -N ""
+ssh-copy-id -i /home/pi/.ssh/id_rsa.pub pi@192.168.1.201
+```
+
+For general management access from your workstation, also copy your own key to both Pis:
+
+```bash
+ssh-copy-id pi@192.168.1.200   # Pi #1
+ssh-copy-id pi@192.168.1.201   # Pi #2
 ```
 
 ### Test Video Transfer
 
-Create a transfer test script on Pi #2:
+Trigger a test by causing motion in front of a Blink camera. Watch the watcher log on Pi #1 to confirm the clip is detected and pushed:
 
 ```bash
-#!/bin/bash
+# On Pi #1 — watch for clip detection and push
+sudo journalctl -u blink-watcher -f
+```
 
-# Monitor for new videos and process them
-while true; do
-    for video in /var/blink_storage/videos/*.mp4; do
-        if [ -f "$video" ]; then
-            echo "Processing: $video"
-            blink-processor process-video "$video"
-            mv "$video" /var/blink_storage/processed/
-        fi
-    done
-    sleep 10
-done
+You should see log lines like:
+```
+Drive image changed, waiting to settle
+Scanning virtual drive for new clips
+New clips found count=1
+Pushing clip to processor file=clip.mp4
+Clip pushed successfully file=clip.mp4
+```
+
+Then confirm the clip arrived on Pi #2:
+
+```bash
+# On Pi #2
+ls -lt /var/blink_storage/videos/
 ```
 
 ## Troubleshooting
@@ -342,6 +392,51 @@ sudo /opt/blink-sync-brain/scripts/drive/diagnose_usb_gadget.sh
    # Create manually if needed
    sudo dd if=/dev/zero of=/var/blink_storage/virtual_drive.img bs=1G count=32
    sudo mkfs.vfat /var/blink_storage/virtual_drive.img
+   ```
+
+### File Watcher Issues
+
+1. **Watcher service not starting**
+   ```bash
+   sudo systemctl status blink-watcher
+   sudo journalctl -u blink-watcher -b
+   # blink-watcher requires blink-drive — confirm blink-drive is active first
+   sudo systemctl status blink-drive
+   ```
+
+2. **Clips not being pushed to Pi #2**
+   ```bash
+   # Check watcher logs for errors
+   sudo journalctl -u blink-watcher -f
+
+   # Test SSH access from Pi #1 to Pi #2 manually
+   ssh pi@192.168.1.201 "echo SSH OK"
+
+   # Test rsync manually
+   rsync -az -e "ssh -i /home/pi/.ssh/id_rsa" \
+     /mnt/blink_shadow/DCIM/clip.mp4 \
+     pi@192.168.1.201:/var/blink_storage/videos/
+   ```
+
+3. **Shadow mount failing**
+   ```bash
+   # Check if loop device can be created
+   sudo losetup -fP /var/blink_storage/virtual_drive.img
+   sudo losetup -j /var/blink_storage/virtual_drive.img
+
+   # Check mount point
+   ls /mnt/blink_shadow
+   mount | grep blink_shadow
+
+   # Clean up stale loop devices if needed
+   sudo losetup -D   # detach all unused loop devices
+   ```
+
+4. **Watcher state file issue (clips being re-pushed after restart)**
+   ```bash
+   cat /var/blink_storage/watcher_state.json
+   # If corrupt, remove it — the watcher will rebuild state on next scan
+   sudo rm /var/blink_storage/watcher_state.json
    ```
 
 ### Video Processing Issues
@@ -543,10 +638,11 @@ sudo apt autoremove && sudo apt autoclean  # Clean cache
 
 ```bash
 # Pi #1 (Drive)
-blink-drive setup
-blink-drive start
-blink-drive stop
-blink-drive status
+blink-drive setup                                              # Create virtual drive and configure USB gadget
+blink-drive start                                             # Start Storage Mode (load g_mass_storage)
+blink-drive stop                                              # Stop Storage Mode
+blink-drive status                                            # Show gadget status
+blink-drive watch --config /opt/blink-sync-brain/configs/drive.yaml  # Start file watcher (push clips to Pi #2)
 
 # Pi #2 (Processor)
 blink-processor start
@@ -557,10 +653,17 @@ blink-processor process-video /path/to/video.mp4 --output-dir /var/blink_storage
 ### Service Management
 
 ```bash
-sudo systemctl start blink-drive.service
-sudo systemctl enable blink-drive.service
-sudo systemctl status blink-drive.service
-sudo journalctl -u blink-drive.service -f
+# Drive service (Storage Mode — runs at boot)
+sudo systemctl start blink-drive
+sudo systemctl enable blink-drive
+sudo systemctl status blink-drive
+sudo journalctl -u blink-drive -f
+
+# Watcher service (pushes clips to Pi #2 — depends on blink-drive)
+sudo systemctl start blink-watcher
+sudo systemctl enable blink-watcher
+sudo systemctl status blink-watcher
+sudo journalctl -u blink-watcher -f
 ```
 
 ### Performance Tips
