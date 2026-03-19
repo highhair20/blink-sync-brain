@@ -1,0 +1,17 @@
+[Unit]
+Description=Blink File Watcher — push new clips to Processor Pi
+After=blink-drive.service network.target
+Requires=blink-drive.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env blink-drive watch --config /opt/blink-sync-brain/configs/drive.yaml
+Restart=on-failure
+RestartSec=10
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

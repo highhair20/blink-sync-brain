@@ -60,6 +60,20 @@ class NotificationSettings:
 
 
 @dataclass
+class WatcherSettings:
+    """Configuration for the file watcher that pushes clips to the Processor Pi."""
+    shadow_mount_point: Path = Path("/mnt/blink_shadow")
+    processor_host: str = ""
+    processor_user: str = "pi"
+    processor_video_path: Path = Path("/var/blink_storage/videos")
+    ssh_key_path: Optional[Path] = None
+    poll_interval: int = 5       # seconds between mtime checks
+    settle_seconds: int = 10     # seconds of no changes before scanning
+    rsync_timeout: int = 30      # seconds before rsync gives up
+    state_file: Path = Path("/var/blink_storage/watcher_state.json")
+
+
+@dataclass
 class NetworkSettings:
     """Network configuration settings."""
     host: str = "0.0.0.0"
@@ -95,6 +109,7 @@ class Settings:
     notifications: NotificationSettings = field(default_factory=NotificationSettings)
     network: NetworkSettings = field(default_factory=NetworkSettings)
     logging: LoggingSettings = field(default_factory=LoggingSettings)
+    watcher: WatcherSettings = field(default_factory=WatcherSettings)
 
     def __post_init__(self):
         """Post-initialization setup."""
@@ -139,9 +154,22 @@ class Settings:
         # Logging settings
         if os.getenv("LOG_LEVEL"):
             self.logging.level = os.getenv("LOG_LEVEL")
-        
+
         if os.getenv("LOG_FILE"):
             self.logging.file_path = Path(os.getenv("LOG_FILE"))
+
+        # Watcher settings
+        if os.getenv("PROCESSOR_HOST"):
+            self.watcher.processor_host = os.getenv("PROCESSOR_HOST")
+
+        if os.getenv("PROCESSOR_USER"):
+            self.watcher.processor_user = os.getenv("PROCESSOR_USER")
+
+        if os.getenv("PROCESSOR_VIDEO_PATH"):
+            self.watcher.processor_video_path = Path(os.getenv("PROCESSOR_VIDEO_PATH"))
+
+        if os.getenv("SSH_KEY_PATH"):
+            self.watcher.ssh_key_path = Path(os.getenv("SSH_KEY_PATH"))
     
     @classmethod
     def from_file(cls, config_path: Path) -> "Settings":
@@ -218,6 +246,26 @@ class Settings:
             if "pushbullet_enabled" in notif_data:
                 self.notifications.pushbullet_enabled = notif_data["pushbullet_enabled"]
         
+        # Watcher settings
+        if "watcher" in config_data:
+            watcher_data = config_data["watcher"]
+            if "processor_host" in watcher_data:
+                self.watcher.processor_host = watcher_data["processor_host"]
+            if "processor_user" in watcher_data:
+                self.watcher.processor_user = watcher_data["processor_user"]
+            if "processor_video_path" in watcher_data:
+                self.watcher.processor_video_path = Path(watcher_data["processor_video_path"])
+            if "ssh_key_path" in watcher_data:
+                self.watcher.ssh_key_path = Path(watcher_data["ssh_key_path"])
+            if "poll_interval" in watcher_data:
+                self.watcher.poll_interval = watcher_data["poll_interval"]
+            if "settle_seconds" in watcher_data:
+                self.watcher.settle_seconds = watcher_data["settle_seconds"]
+            if "rsync_timeout" in watcher_data:
+                self.watcher.rsync_timeout = watcher_data["rsync_timeout"]
+            if "state_file" in watcher_data:
+                self.watcher.state_file = Path(watcher_data["state_file"])
+
         # Network settings
         if "network" in config_data:
             network_data = config_data["network"]
@@ -272,6 +320,17 @@ class Settings:
                 "email_enabled": self.notifications.email_enabled,
                 "pushbullet_enabled": self.notifications.pushbullet_enabled,
                 "webhook_enabled": self.notifications.webhook_enabled,
+            },
+            "watcher": {
+                "shadow_mount_point": str(self.watcher.shadow_mount_point),
+                "processor_host": self.watcher.processor_host,
+                "processor_user": self.watcher.processor_user,
+                "processor_video_path": str(self.watcher.processor_video_path),
+                "ssh_key_path": str(self.watcher.ssh_key_path) if self.watcher.ssh_key_path else None,
+                "poll_interval": self.watcher.poll_interval,
+                "settle_seconds": self.watcher.settle_seconds,
+                "rsync_timeout": self.watcher.rsync_timeout,
+                "state_file": str(self.watcher.state_file),
             },
             "network": {
                 "host": self.network.host,

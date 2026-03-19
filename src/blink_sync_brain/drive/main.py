@@ -24,6 +24,9 @@ def parse_args() -> argparse.Namespace:
     setup = sub.add_parser("setup", help="Setup USB gadget (create drive, config gadget)")
     setup.add_argument("--config", type=Path)
 
+    watch = sub.add_parser("watch", help="Watch for new clips and push to processor Pi")
+    watch.add_argument("--config", type=Path)
+
     return parser.parse_args()
 
 
@@ -45,6 +48,11 @@ async def _run() -> int:
     if args.command == "status":
         status = await manager.get_status()
         print(status)
+        return 0
+    if args.command == "watch":
+        from blink_sync_brain.core.file_watcher import FileWatcher
+        watcher = FileWatcher(settings)
+        await watcher.start()
         return 0
 
     logger.error("No command provided. See --help")
