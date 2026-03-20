@@ -1,6 +1,6 @@
-# Blink Sync Brain Application Setup
+# Blink Lens Application Setup
 
-This guide covers installing and configuring the Blink Sync Brain software on both Raspberry Pi Zero 2 W boards. For hardware setup and OS installation, see the [Pi Zero Setup Guide](pi-zero-setup.md).
+This guide covers installing and configuring the Blink Lens software on both Raspberry Pi Zero 2 W boards. For hardware setup and OS installation, see the [Pi Zero Setup Guide](pi-zero-setup.md).
 
 ## Prerequisites
 
@@ -20,15 +20,15 @@ ssh pi@blink-usb.local
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git
 
-sudo mkdir -p /opt/blink-sync-brain
-sudo chown pi:pi /opt/blink-sync-brain
-git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
+sudo mkdir -p /opt/blink-lens
+sudo chown pi:pi /opt/blink-lens
+git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
 ```
 
 ### Step 2: Enable USB Gadget Mode
 
 ```bash
-sudo /opt/blink-sync-brain/scripts/drive/enable-usb-gadget.sh
+sudo /opt/blink-lens/scripts/drive/enable-usb-gadget.sh
 sudo reboot
 ```
 
@@ -43,7 +43,7 @@ After reboot, SSH back in:
 ```bash
 ssh pi@blink-usb.local
 
-sudo /opt/blink-sync-brain/scripts/drive/install-deps.sh
+sudo /opt/blink-lens/scripts/drive/install-deps.sh
 ```
 
 ### Step 4: Create the Virtual Storage
@@ -52,20 +52,20 @@ Creates a 32 GB FAT32 disk image that acts as the flash drive's storage. This ta
 
 ```bash
 screen
-sudo /opt/blink-sync-brain/scripts/drive/create-virtual-storage.sh
+sudo /opt/blink-lens/scripts/drive/create-virtual-storage.sh
 ```
 
 ### Step 5: Install the Application
 
 ```bash
 screen
-/opt/blink-sync-brain/scripts/drive/install-app.sh
+/opt/blink-lens/scripts/drive/install-app.sh
 ```
 
 ### Step 6: Test Storage Mode
 
 ```bash
-sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
+sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
 
 # Verify
 lsmod | grep g_mass_storage
@@ -86,7 +86,7 @@ The file watcher runs on Pi #1 and pushes new clips to Pi #2 automatically. It s
 **7a. Set Pi #2's address in the config:**
 
 ```bash
-nano /opt/blink-sync-brain/configs/drive.yaml
+nano /opt/blink-lens/configs/drive.yaml
 ```
 
 Set `processor_host` to Pi #2's IP or hostname:
@@ -119,9 +119,9 @@ ssh pi@192.168.1.201 "echo SSH OK"
 Install both service files — the drive service (Storage Mode at boot) and the watcher service (automatic clip transfer):
 
 ```bash
-sudo /opt/blink-sync-brain/scripts/drive/install-service.sh
+sudo /opt/blink-lens/scripts/drive/install-service.sh
 
-sudo cp /opt/blink-sync-brain/scripts/drive/systemd/blink-watcher.service /etc/systemd/system/
+sudo cp /opt/blink-lens/scripts/drive/systemd/blink-watcher.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable blink-watcher
 sudo reboot
@@ -137,13 +137,13 @@ The mode scripts in `scripts/drive/` are still available for manual use or diagn
 
 ```bash
 # Check current mode
-/opt/blink-sync-brain/scripts/drive/status.sh
+/opt/blink-lens/scripts/drive/status.sh
 
 # Manual mode switch (stops automatic watcher — use for diagnostics only)
 sudo systemctl stop blink-watcher
-sudo /opt/blink-sync-brain/scripts/drive/start_server_mode.sh
+sudo /opt/blink-lens/scripts/drive/start_server_mode.sh
 rsync -av /mnt/blink_drive/ pi@192.168.1.201:/var/blink_storage/videos/
-sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
+sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
 sudo systemctl start blink-watcher
 ```
 
@@ -155,7 +155,7 @@ After reboot, SSH back in and confirm both services are running:
 ssh pi@blink-usb.local
 
 # Storage Mode should be active
-/opt/blink-sync-brain/scripts/drive/status.sh
+/opt/blink-lens/scripts/drive/status.sh
 # Expected: Storage Mode (Blink can write)
 
 # Watcher service should be running
@@ -181,22 +181,22 @@ Once configured, Blink will save clips to the virtual drive.
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git
 
-sudo mkdir -p /opt/blink-sync-brain
-sudo chown pi:pi /opt/blink-sync-brain
-git clone https://github.com/highhair20/blink-sync-brain.git /opt/blink-sync-brain
+sudo mkdir -p /opt/blink-lens
+sudo chown pi:pi /opt/blink-lens
+git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
 ```
 
 ### Step 2: Install System Dependencies
 
 ```bash
-sudo /opt/blink-sync-brain/scripts/processor/install-deps.sh
+sudo /opt/blink-lens/scripts/processor/install-deps.sh
 ```
 
 ### Step 3: Install the Application
 
 ```bash
 screen
-/opt/blink-sync-brain/scripts/processor/install-app.sh
+/opt/blink-lens/scripts/processor/install-app.sh
 ```
 
 ### Step 4: Configure the Processor
@@ -204,18 +204,18 @@ screen
 The repo includes `configs/processor.yaml` with Pi Zero 2 W–tuned defaults (lower concurrency, higher face confidence). Review and edit it if needed:
 
 ```bash
-nano /opt/blink-sync-brain/configs/processor.yaml
+nano /opt/blink-lens/configs/processor.yaml
 ```
 
 Pass it when starting the processor:
 ```bash
-blink-processor start --config /opt/blink-sync-brain/configs/processor.yaml
+blink-processor start --config /opt/blink-lens/configs/processor.yaml
 ```
 
 ### Step 5: Setup Storage Directories
 
 ```bash
-sudo /opt/blink-sync-brain/scripts/processor/setup-storage.sh
+sudo /opt/blink-lens/scripts/processor/setup-storage.sh
 ```
 
 ### Step 6: Setup Face Recognition Database
@@ -233,7 +233,7 @@ mkdir -p ~/face_images
 ### Step 7: Create Systemd Service
 
 ```bash
-sudo /opt/blink-sync-brain/scripts/processor/install-service.sh
+sudo /opt/blink-lens/scripts/processor/install-service.sh
 ```
 
 ## System Integration & Networking
@@ -306,7 +306,7 @@ ls -lt /var/blink_storage/videos/
 As a first step, run the built-in diagnostic script. It checks modules, the virtual drive file, USB gadget configfs, kernel messages, and the systemd service:
 
 ```bash
-sudo /opt/blink-sync-brain/scripts/drive/diagnose_usb_gadget.sh
+sudo /opt/blink-lens/scripts/drive/diagnose_usb_gadget.sh
 ```
 
 1. **Gadget Not Recognized — Complete Diagnostic**
@@ -378,7 +378,7 @@ sudo /opt/blink-sync-brain/scripts/drive/diagnose_usb_gadget.sh
    which blink-drive
 
    # Test the command manually
-   sudo /opt/blink-sync-brain/scripts/drive/start_storage_mode.sh
+   sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
 
    # Reload systemd and restart service
    sudo systemctl daemon-reload
@@ -522,7 +522,7 @@ sudo /opt/blink-sync-brain/scripts/drive/diagnose_usb_gadget.sh
 ```bash
 #!/bin/bash
 
-echo "=== Blink Sync Brain System Status ==="
+echo "=== Blink Lens System Status ==="
 echo "Date: $(date)"
 echo
 
@@ -642,7 +642,7 @@ blink-drive setup                                              # Create virtual 
 blink-drive start                                             # Start Storage Mode (load g_mass_storage)
 blink-drive stop                                              # Stop Storage Mode
 blink-drive status                                            # Show gadget status
-blink-drive watch --config /opt/blink-sync-brain/configs/drive.yaml  # Start file watcher (push clips to Pi #2)
+blink-drive watch --config /opt/blink-lens/configs/drive.yaml  # Start file watcher (push clips to Pi #2)
 
 # Pi #2 (Processor)
 blink-processor start
@@ -729,7 +729,7 @@ echo "Network: $(hostname -I)"
 #!/bin/bash
 BACKUP_DIR="/backup/$(date +%Y%m%d)"
 mkdir -p $BACKUP_DIR
-cp /etc/blink-sync-brain/config.yaml $BACKUP_DIR/
+cp /etc/blink-lens/config.yaml $BACKUP_DIR/
 cp /var/blink_storage/face_database.pkl $BACKUP_DIR/
 cp /var/log/blink_monitor.log $BACKUP_DIR/
 echo "Backup completed: $BACKUP_DIR"
@@ -741,7 +741,7 @@ echo "Backup completed: $BACKUP_DIR"
 /boot/firmware/config.txt          # Boot configuration
 /etc/modules                       # System modules
 /etc/ssh/sshd_config               # SSH configuration
-/etc/blink-sync-brain/config.yaml  # Blink Sync Brain config
+/etc/blink-lens/config.yaml  # Blink Lens config
 ```
 
 ---

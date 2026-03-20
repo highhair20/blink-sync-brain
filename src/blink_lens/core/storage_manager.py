@@ -1,5 +1,5 @@
 """
-Storage Manager for Blink Sync Brain.
+Storage Manager for Blink Lens.
 
 This module handles storage operations, file management, and storage
 monitoring for the Blink camera system enhancement.
@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Any
 import psutil
 import structlog
 
-from blink_sync_brain.config.settings import Settings
+from blink_lens.config.settings import Settings
 
 
 class StorageManager:

@@ -1,5 +1,5 @@
 """
-Video metadata model for Blink Sync Brain.
+Video metadata model for Blink Lens.
 
 This module defines the data structures for video metadata
 and processing information.

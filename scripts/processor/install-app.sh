@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-REPO_DIR="/opt/blink-sync-brain"
+REPO_DIR="/opt/blink-lens"
 
 echo "Installing Blink Processor application..."
 

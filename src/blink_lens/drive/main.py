@@ -5,8 +5,8 @@ from pathlib import Path
 
 import structlog
 
-from blink_sync_brain.config.settings import Settings
-from blink_sync_brain.drive.usb_gadget import USBGadgetManager
+from blink_lens.config.settings import Settings
+from blink_lens.drive.usb_gadget import USBGadgetManager
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,7 +50,7 @@ async def _run() -> int:
         print(status)
         return 0
     if args.command == "watch":
-        from blink_sync_brain.core.file_watcher import FileWatcher
+        from blink_lens.core.file_watcher import FileWatcher
         watcher = FileWatcher(settings)
         await watcher.start()
         return 0

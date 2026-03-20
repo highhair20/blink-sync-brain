@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Blink Sync Brain is a dual-Raspberry Pi Zero 2 W system that extends Blink security cameras with local storage and face recognition. Pi #1 (Drive) emulates a USB flash drive to the Blink Sync Module via USB gadget mode. Pi #2 (Processor) pulls clips from the virtual drive, runs face detection/recognition, and manages storage with retention policies.
+Blink Lens is a dual-Raspberry Pi Zero 2 W system that extends Blink security cameras with local storage and face recognition. Pi #1 (Drive) emulates a USB flash drive to the Blink Sync Module via USB gadget mode. Pi #2 (Processor) pulls clips from the virtual drive, runs face detection/recognition, and manages storage with retention policies.
 
 ## Build & Install
 
@@ -48,12 +48,12 @@ mypy src/           # Type check (strict mode: disallow_untyped_defs, etc.)
 
 The codebase is split by Pi role. Each role has its own CLI entry point, optional dependencies, config file, and systemd service:
 
-- **Drive** (`src/blink_sync_brain/drive/`) — CLI: `blink-drive setup|start|stop|status`
-- **Processor** (`src/blink_sync_brain/processor/`) — CLI: `blink-processor start|process-video|status`
+- **Drive** (`src/blink_lens/drive/`) — CLI: `blink-drive setup|start|stop|status`
+- **Processor** (`src/blink_lens/processor/`) — CLI: `blink-processor start|process-video|status`
 
 Entry points are registered in `pyproject.toml` under `[project.scripts]`.
 
-### Core Modules (`src/blink_sync_brain/core/`)
+### Core Modules (`src/blink_lens/core/`)
 
 Shared business logic used by both roles:
 
@@ -65,13 +65,13 @@ Shared business logic used by both roles:
 
 The `drive/` and `processor/` role modules re-export from `core/` and add CLI argument parsing.
 
-### Configuration (`src/blink_sync_brain/config/settings.py`)
+### Configuration (`src/blink_lens/config/settings.py`)
 
 Dataclass-based settings with nested sections: `StorageSettings`, `ProcessingSettings`, `FaceRecognitionSettings`, `NotificationSettings`, `NetworkSettings`, `LoggingSettings`.
 
 Loading precedence: dataclass defaults → `.env` file → YAML config file. Config files live in `configs/drive.yaml` and `configs/processor.yaml`. Key environment variables: `VIRTUAL_DRIVE_PATH`, `VIDEO_DIRECTORY`, `FACE_DATABASE_PATH`, `FACE_CONFIDENCE_THRESHOLD`, `LOG_LEVEL`.
 
-### Data Models (`src/blink_sync_brain/models/`)
+### Data Models (`src/blink_lens/models/`)
 
 - `VideoMetadata` — resolution, FPS, duration, codec
 - `FaceData` / `KnownFace` — face encodings, locations, detection stats
@@ -88,5 +88,5 @@ Both CLI entry points use `async def _run()` with `asyncio.run()`. Video process
 /var/blink_storage/videos/              # Extracted video clips
 /var/blink_storage/results/             # Processing results
 /var/blink_storage/face_database.pkl    # Known faces database
-/var/log/blink_sync_brain/app.log       # Application logs
+/var/log/blink_lens/app.log       # Application logs
 ```

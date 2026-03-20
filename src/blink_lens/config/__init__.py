@@ -1,4 +1,4 @@
-"""Configuration management for Blink Sync Brain."""
+"""Configuration management for Blink Lens."""
 
 from .settings import Settings
 

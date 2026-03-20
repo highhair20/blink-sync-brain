@@ -1,6 +1,6 @@
 # Raspberry Pi Zero 2 W Setup Guide
 
-This guide provides detailed instructions for setting up a headless Raspberry Pi Zero 2 W board for the Blink Sync Brain system.
+This guide provides detailed instructions for setting up a headless Raspberry Pi Zero 2 W board for the Blink Lens system.
 
 **Note**: This guide assumes you're setting up from a Mac and that the Pi boards use NetworkManager for network configuration (default in recent Raspberry Pi OS versions).
 

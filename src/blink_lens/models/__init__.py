@@ -1,5 +1,5 @@
 """
-Data models for Blink Sync Brain.
+Data models for Blink Lens.
 
 This package contains data models and structures used throughout
 the Blink camera system enhancement.

@@ -15,7 +15,7 @@ from typing import Optional, Dict, Any
 import structlog
 import psutil
 
-from blink_sync_brain.config.settings import Settings
+from blink_lens.config.settings import Settings
 
 
 class USBGadgetManager:
@@ -270,7 +270,7 @@ class USBGadgetManager:
                 "0x409": {
                     "serialnumber": "BLINK_STORAGE_001",
                     "product": "Blink Storage Device",
-                    "manufacturer": "Blink Sync Brain",
+                    "manufacturer": "Blink Lens",
                 }
             },
             "configs": {

@@ -1,5 +1,5 @@
 """
-Video Processor for Blink Sync Brain.
+Video Processor for Blink Lens.
 
 This module handles video processing, analysis, and management for the
 Blink camera system enhancement.
@@ -19,9 +19,9 @@ import numpy as np
 import structlog
 from moviepy.editor import VideoFileClip
 
-from blink_sync_brain.core.face_recognition import FaceRecognitionEngine
-from blink_sync_brain.models.video_metadata import VideoMetadata
-from blink_sync_brain.models.processing_result import ProcessingResult
+from blink_lens.core.face_recognition import FaceRecognitionEngine
+from blink_lens.models.video_metadata import VideoMetadata
+from blink_lens.models.processing_result import ProcessingResult
 
 
 class VideoProcessor:

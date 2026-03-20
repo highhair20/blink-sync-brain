@@ -1,5 +1,5 @@
 """
-Face data models for Blink Sync Brain.
+Face data models for Blink Lens.
 
 This module defines the data structures for face recognition
 and face database management.

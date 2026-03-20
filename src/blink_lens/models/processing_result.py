@@ -1,5 +1,5 @@
 """
-Processing result model for Blink Sync Brain.
+Processing result model for Blink Lens.
 
 This module defines the data structures for video processing results
 and analysis information.

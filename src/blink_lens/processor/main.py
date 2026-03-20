@@ -5,9 +5,9 @@ from pathlib import Path
 
 import structlog
 
-from blink_sync_brain.config.settings import Settings
-from blink_sync_brain.processor.face_recognition import FaceRecognitionEngine
-from blink_sync_brain.processor.video_processor import VideoProcessor
+from blink_lens.config.settings import Settings
+from blink_lens.processor.face_recognition import FaceRecognitionEngine
+from blink_lens.processor.video_processor import VideoProcessor
 
 
 def parse_args() -> argparse.Namespace:

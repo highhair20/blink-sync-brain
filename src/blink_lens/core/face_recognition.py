@@ -1,5 +1,5 @@
 """
-Face Recognition Engine for Blink Sync Brain.
+Face Recognition Engine for Blink Lens.
 
 This module provides face detection and recognition capabilities for
 the Blink camera system enhancement.
@@ -19,7 +19,7 @@ import numpy as np
 import structlog
 from PIL import Image
 
-from blink_sync_brain.models.face_data import FaceData, KnownFace
+from blink_lens.models.face_data import FaceData, KnownFace
 
 
 class FaceRecognitionEngine:

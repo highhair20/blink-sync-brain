@@ -1,5 +1,5 @@
 """
-Core components for Blink Sync Brain system.
+Core components for Blink Lens system.
 
 This package contains the main business logic components for the
 Blink camera system enhancement.

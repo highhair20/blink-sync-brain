@@ -1,5 +1,5 @@
 """
-Settings configuration for Blink Sync Brain.
+Settings configuration for Blink Lens.
 
 This module handles configuration management for the Blink camera
 system enhancement application.
@@ -98,7 +98,7 @@ class Settings:
     """Main application settings."""
     
     # Application settings
-    app_name: str = "Blink Sync Brain"
+    app_name: str = "Blink Lens"
     version: str = "1.0.0"
     debug: bool = False
 

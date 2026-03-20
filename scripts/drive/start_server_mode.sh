@@ -4,7 +4,7 @@ set -euo pipefail
 DRIVE_IMG="/var/blink_storage/virtual_drive.img"
 MOUNT_POINT="/mnt/blink_drive"
 
-echo "Switching to Server Mode for Blink Sync Brain..."
+echo "Switching to Server Mode for Blink Lens..."
 
 # Unload the kernel module to stop USB drive emulation
 modprobe -r g_mass_storage

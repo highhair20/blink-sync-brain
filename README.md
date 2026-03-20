@@ -1,4 +1,4 @@
-# Blink Sync Brain
+# Blink Lens
 
 A Raspberry Pi-based system that extends Blink security cameras with face recognition, local video storage, and intelligent video processing. Two Raspberry Pi Zero 2 Ws work together in a dual-role architecture to intercept, analyze, and manage video clips from Blink cameras.
 

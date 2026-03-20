@@ -1,5 +1,5 @@
 """
-File watcher for Blink Sync Brain Drive Pi.
+File watcher for Blink Lens Drive Pi.
 
 Monitors the virtual drive image for new clips written by Blink and pushes
 them to the Processor Pi via rsync over SSH. Uses a short-lived read-only
@@ -22,7 +22,7 @@ from typing import Set
 
 import structlog
 
-from blink_sync_brain.config.settings import Settings
+from blink_lens.config.settings import Settings
 
 
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".h264"}
