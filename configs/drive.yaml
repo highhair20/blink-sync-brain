@@ -5,6 +5,15 @@ storage:
   retention_days: 30
   monitor_interval: 300
 
+watcher:
+  processor_host: ""          # Pi #2 IP or hostname — must be set before running
+  processor_user: "pi"
+  processor_video_path: "/var/blink_storage/videos"
+  ssh_key_path: "/home/pi/.ssh/id_rsa"
+  poll_interval: 5            # seconds between mtime checks
+  settle_seconds: 10          # seconds of no changes before scanning
+  rsync_timeout: 30
+
 logging:
   level: "INFO"
 
