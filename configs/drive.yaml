@@ -13,6 +13,7 @@ watcher:
   poll_interval: 5            # seconds between mtime checks
   settle_seconds: 10          # seconds of no changes before scanning
   rsync_timeout: 30
+  shadow_mount_point: "/mnt/blink_shadow"
 
 logging:
   level: "INFO"
