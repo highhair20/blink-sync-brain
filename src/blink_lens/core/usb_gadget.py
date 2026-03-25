@@ -6,9 +6,8 @@ to act as a virtual USB storage device for the Blink Sync Module.
 """
 
 import asyncio
-import logging
 import subprocess
-import sys
+import time
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -18,397 +17,313 @@ import psutil
 from blink_lens.config.settings import Settings
 
 
+def _find_scripts_dir() -> Path:
+    """Locate the drive scripts directory.
+
+    Checks for a development install (scripts/ relative to the repo root)
+    before falling back to the standard production deploy path.
+    """
+    candidate = Path(__file__).parents[3] / "scripts" / "drive"
+    if candidate.is_dir():
+        return candidate
+    return Path("/opt/blink-lens/scripts/drive")
+
+
 class USBGadgetManager:
     """
     Manages USB gadget mode for Raspberry Pi Zero 2 W.
-    
+
     This class handles the configuration and management of the Pi Zero 2 W
     operating in USB gadget mode as a mass storage device.
     """
-    
+
     def __init__(self, settings: Settings):
         """Initialize the USB Gadget Manager."""
         self.settings = settings
         self.logger = structlog.get_logger()
-        self.virtual_drive_path: Optional[Path] = None
+        self.virtual_drive_path: Path = settings.storage.virtual_drive_path
         self.is_configured = False
         self.is_active = False
-        
+        self._scripts_dir = _find_scripts_dir()
+
     async def setup_usb_gadget(self) -> bool:
         """
-        Setup USB gadget mode for mass storage.
-        
+        Setup USB gadget mode.
+
+        Runs enable-usb-gadget.sh to modify boot config (dwc2 overlay + module)
+        and creates the virtual drive image if it does not already exist.
+        A reboot is required for the boot config changes to take effect.
+
         Returns:
             bool: True if setup was successful, False otherwise
         """
         try:
             self.logger.info("Setting up USB gadget mode")
-            
-            # Check if running on Raspberry Pi
+
             if not self._is_raspberry_pi():
                 self.logger.error("Not running on Raspberry Pi")
                 return False
-            
-            # Create virtual drive file
-            await self._create_virtual_drive()
-            
-            # Configure USB gadget
-            await self._configure_usb_gadget()
-            
-            # Enable USB gadget mode
-            await self._enable_usb_gadget()
-            
+
+            # Modify boot config for USB gadget mode (requires reboot to apply)
+            enable_script = self._scripts_dir / "enable-usb-gadget.sh"
+            result = await self._run_command(["sudo", str(enable_script)])
+            if result.returncode != 0:
+                self.logger.error("Failed to enable USB gadget boot config", error=result.stderr)
+                return False
+
+            # Create the virtual drive image if it doesn't exist yet
+            if not self.virtual_drive_path.exists():
+                if not await self._create_virtual_drive():
+                    return False
+            else:
+                self.logger.info(
+                    "Virtual drive already exists, skipping creation",
+                    path=str(self.virtual_drive_path),
+                )
+
             self.is_configured = True
-            self.logger.info("USB gadget setup completed successfully")
+            self.logger.info(
+                "USB gadget setup complete — reboot to apply boot config changes"
+            )
             return True
-            
+
         except Exception as e:
             self.logger.error("Failed to setup USB gadget", error=str(e), exc_info=True)
             return False
-    
+
     async def start_usb_gadget(self) -> bool:
         """
-        Start the USB gadget service.
-        
+        Start Storage Mode: load g_mass_storage so Blink can write to the virtual drive.
+
         Returns:
             bool: True if started successfully, False otherwise
         """
         try:
-            if not self.is_configured:
-                self.logger.warning("USB gadget not configured, setting up first")
-                if not await self.setup_usb_gadget():
-                    return False
-            
-            self.logger.info("Starting USB gadget service")
-            
-            # Start the USB gadget service
-            await self._start_gadget_service()
-            
+            self.logger.info("Starting USB gadget (Storage Mode)")
+            result = await self._run_command(
+                ["sudo", str(self._scripts_dir / "start_storage_mode.sh")]
+            )
+            if result.returncode != 0:
+                self.logger.error("Failed to start Storage Mode", error=result.stderr)
+                return False
             self.is_active = True
-            self.logger.info("USB gadget service started successfully")
+            self.logger.info("Storage Mode active")
             return True
-            
+
         except Exception as e:
-            self.logger.error("Failed to start USB gadget service", error=str(e))
+            self.logger.error("Failed to start USB gadget", error=str(e))
             return False
-    
+
     async def stop_usb_gadget(self) -> bool:
         """
-        Stop the USB gadget service.
-        
+        Stop Storage Mode: unload g_mass_storage.
+
         Returns:
             bool: True if stopped successfully, False otherwise
         """
         try:
-            self.logger.info("Stopping USB gadget service")
-            
-            # Stop the USB gadget service
-            await self._stop_gadget_service()
-            
+            self.logger.info("Stopping USB gadget (unloading g_mass_storage)")
+            result = await self._run_command(["sudo", "modprobe", "-r", "g_mass_storage"])
+            if result.returncode != 0:
+                self.logger.error("Failed to unload g_mass_storage", error=result.stderr)
+                return False
             self.is_active = False
-            self.logger.info("USB gadget service stopped successfully")
+            self.logger.info("USB gadget stopped")
             return True
-            
+
         except Exception as e:
-            self.logger.error("Failed to stop USB gadget service", error=str(e))
+            self.logger.error("Failed to stop USB gadget", error=str(e))
             return False
-    
+
     async def get_status(self) -> Dict[str, Any]:
         """
         Get the current status of the USB gadget.
-        
+
         Returns:
             Dict containing status information
         """
-        status = {
+        return {
             "configured": self.is_configured,
             "active": self.is_active,
-            "virtual_drive_path": str(self.virtual_drive_path) if self.virtual_drive_path else None,
+            "virtual_drive_path": str(self.virtual_drive_path),
             "drive_size": await self._get_drive_size(),
             "free_space": await self._get_free_space(),
             "connected": await self._is_connected(),
         }
-        
-        return status
-    
+
     async def monitor_storage(self) -> None:
         """
         Monitor storage usage and manage space.
-        
+
         This method runs continuously to monitor the virtual drive
         and manage storage space by removing old files when needed.
         """
         self.logger.info("Starting storage monitoring")
-        
+
         while self.is_active:
             try:
-                # Check available space
                 free_space = await self._get_free_space()
                 total_space = await self._get_drive_size()
                 usage_percent = ((total_space - free_space) / total_space) * 100
-                
+
                 self.logger.debug(
                     "Storage status",
                     free_space_gb=free_space / (1024**3),
                     usage_percent=usage_percent,
                 )
-                
-                # If usage is above threshold, clean up old files
+
                 if usage_percent > self.settings.storage.cleanup_threshold:
                     await self._cleanup_old_files()
-                
-                # Wait before next check
+
                 await asyncio.sleep(self.settings.storage.monitor_interval)
-                
+
             except Exception as e:
                 self.logger.error("Error in storage monitoring", error=str(e))
-                await asyncio.sleep(60)  # Wait longer on error
-    
+                await asyncio.sleep(60)
+
     def _is_raspberry_pi(self) -> bool:
         """Check if running on Raspberry Pi."""
         try:
             with open("/proc/cpuinfo", "r") as f:
-                cpu_info = f.read()
-                return "Raspberry Pi" in cpu_info
+                return "Raspberry Pi" in f.read()
         except Exception:
             return False
-    
-    async def _create_virtual_drive(self) -> None:
-        """Create the virtual drive file."""
-        drive_size = self.settings.storage.virtual_drive_size_gb
-        drive_path = self.settings.storage.virtual_drive_path
-        
-        self.logger.info("Creating virtual drive", size_gb=drive_size, path=str(drive_path))
-        
-        # Create directory if it doesn't exist
-        drive_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Create virtual drive file using dd
-        cmd = [
-            "dd", "if=/dev/zero",
-            f"of={drive_path}",
-            "bs=1G",
-            f"count={drive_size}",
-        ]
-        
-        result = await self._run_command(cmd)
+
+    async def _create_virtual_drive(self) -> bool:
+        """Create the virtual drive image using create-virtual-storage.sh."""
+        self.logger.info("Creating virtual drive", path=str(self.virtual_drive_path))
+        result = await self._run_command(
+            ["sudo", str(self._scripts_dir / "create-virtual-storage.sh")]
+        )
         if result.returncode != 0:
-            raise RuntimeError(f"Failed to create virtual drive: {result.stderr}")
-        
-        # Format the drive with ExFAT (recommended by Blink)
-        await self._format_drive(drive_path)
-        
-        self.virtual_drive_path = drive_path
+            self.logger.error("Failed to create virtual drive", error=result.stderr)
+            return False
         self.logger.info("Virtual drive created successfully")
-    
-    async def _format_drive(self, drive_path: Path) -> None:
-        """Format the virtual drive with ExFAT filesystem."""
-        self.logger.info("Formatting virtual drive with ExFAT")
-        
-        # Install exfat-utils if not available
-        await self._install_exfat_utils()
-        
-        # Format with ExFAT
-        cmd = ["mkfs.exfat", str(drive_path)]
-        result = await self._run_command(cmd)
-        
-        if result.returncode != 0:
-            self.logger.warning("ExFAT formatting failed, trying FAT32", error=result.stderr)
-            # Fallback to FAT32
-            cmd = ["mkfs.vfat", "-F", "32", str(drive_path)]
-            result = await self._run_command(cmd)
-            
-            if result.returncode != 0:
-                raise RuntimeError(f"Failed to format drive: {result.stderr}")
-    
-    async def _install_exfat_utils(self) -> None:
-        """Install exfat-utils package if not available."""
-        try:
-            # Check if exfat-utils is installed
-            result = await self._run_command(["which", "mkfs.exfat"])
-            if result.returncode == 0:
-                return  # Already installed
-            
-            # Install exfat-utils
-            self.logger.info("Installing exfat-utils")
-            cmd = ["apt-get", "update"]
-            await self._run_command(cmd)
-            
-            cmd = ["apt-get", "install", "-y", "exfat-utils"]
-            result = await self._run_command(cmd)
-            
-            if result.returncode != 0:
-                self.logger.warning("Failed to install exfat-utils", error=result.stderr)
-                
-        except Exception as e:
-            self.logger.warning("Could not install exfat-utils", error=str(e))
-    
-    async def _configure_usb_gadget(self) -> None:
-        """Configure USB gadget mode."""
-        self.logger.info("Configuring USB gadget mode")
-        
-        # Create gadget configuration
-        config = self._create_gadget_config()
-        
-        # Write configuration to file
-        config_path = Path("/sys/kernel/config/usb_gadget/blink_storage")
-        config_path.mkdir(parents=True, exist_ok=True)
-        
-        # Apply configuration
-        await self._apply_gadget_config(config_path, config)
-        
-        self.logger.info("USB gadget configuration applied")
-    
-    def _create_gadget_config(self) -> Dict[str, Any]:
-        """Create USB gadget configuration."""
-        return {
-            "idVendor": "0x1d6b",  # Linux Foundation
-            "idProduct": "0x0104",  # Multifunction Composite Gadget
-            "bcdDevice": "0x0100",
-            "bcdUSB": "0x0200",
-            "strings": {
-                "0x409": {
-                    "serialnumber": "BLINK_STORAGE_001",
-                    "product": "Blink Storage Device",
-                    "manufacturer": "Blink Lens",
-                }
-            },
-            "configs": {
-                "c.1": {
-                    "MaxPower": "250",
-                    "bmAttributes": "0x80",
-                    "strings": {
-                        "0x409": {
-                            "configuration": "Blink Storage Configuration"
-                        }
-                    }
-                }
-            },
-            "functions": {
-                "mass_storage.0": {
-                    "lun.0": {
-                        "file": str(self.virtual_drive_path),
-                        "removable": "1",
-                        "cdrom": "0",
-                        "ro": "0",
-                        "no_fua": "1"
-                    }
-                }
-            }
-        }
-    
-    async def _apply_gadget_config(self, config_path: Path, config: Dict[str, Any]) -> None:
-        """Apply the gadget configuration."""
-        # This is a simplified version - in practice, you'd need to write
-        # the configuration to the appropriate sysfs files
-        self.logger.info("Applying gadget configuration", config_path=str(config_path))
-        
-        # Note: This is a placeholder for the actual implementation
-        # The real implementation would involve writing to sysfs files
-        # which requires root privileges and careful handling
-        
-        await asyncio.sleep(1)  # Simulate configuration time
-    
-    async def _enable_usb_gadget(self) -> None:
-        """Enable USB gadget mode."""
-        self.logger.info("Enabling USB gadget mode")
-        
-        # Enable the gadget
-        cmd = ["echo", "1", ">", "/sys/kernel/config/usb_gadget/blink_storage/UDC"]
-        result = await self._run_command(cmd, shell=True)
-        
-        if result.returncode != 0:
-            raise RuntimeError(f"Failed to enable USB gadget: {result.stderr}")
-        
-        self.logger.info("USB gadget mode enabled")
-    
-    async def _start_gadget_service(self) -> None:
-        """Start the USB gadget service."""
-        # In a real implementation, this would start a systemd service
-        # or similar that manages the USB gadget
-        self.logger.info("Starting USB gadget service")
-        await asyncio.sleep(1)  # Simulate service startup
-    
-    async def _stop_gadget_service(self) -> None:
-        """Stop the USB gadget service."""
-        self.logger.info("Stopping USB gadget service")
-        await asyncio.sleep(1)  # Simulate service shutdown
-    
+        return True
+
+    async def _is_connected(self) -> bool:
+        """Check if g_mass_storage is loaded (Storage Mode active)."""
+        result = await self._run_command(["lsmod"])
+        return "g_mass_storage" in result.stdout
+
     async def _get_drive_size(self) -> int:
         """Get the total size of the virtual drive in bytes."""
-        if not self.virtual_drive_path or not self.virtual_drive_path.exists():
-            return 0
-        
         try:
-            stat = self.virtual_drive_path.stat()
-            return stat.st_size
+            return self.virtual_drive_path.stat().st_size
         except Exception as e:
             self.logger.error("Failed to get drive size", error=str(e))
             return 0
-    
+
     async def _get_free_space(self) -> int:
-        """Get the free space on the virtual drive in bytes."""
-        if not self.virtual_drive_path or not self.virtual_drive_path.exists():
+        """Get free space inside the virtual drive's FAT32 filesystem via a read-only shadow mount."""
+        mount_point = self.settings.watcher.shadow_mount_point
+        mount_point.mkdir(parents=True, exist_ok=True)
+
+        result = await self._run_command(["losetup", "-fP", str(self.virtual_drive_path)])
+        if result.returncode != 0:
+            self.logger.error("Failed to create loop device for space check", error=result.stderr)
             return 0
-        
-        try:
-            # Get disk usage of the directory containing the virtual drive
-            disk_usage = psutil.disk_usage(self.virtual_drive_path.parent)
-            return disk_usage.free
-        except Exception as e:
-            self.logger.error("Failed to get free space", error=str(e))
+
+        result = await self._run_command(["losetup", "-j", str(self.virtual_drive_path)])
+        if result.returncode != 0 or not result.stdout.strip():
             return 0
-    
-    async def _is_connected(self) -> bool:
-        """Check if the USB gadget is connected to a host."""
+
+        loop_dev = result.stdout.strip().splitlines()[0].split(":")[0]
+        partition = f"{loop_dev}p1"
+
+        for _ in range(10):
+            if Path(partition).exists():
+                break
+            await self._run_command(["partprobe", loop_dev])
+            await asyncio.sleep(0.5)
+
+        result = await self._run_command(
+            ["mount", "-t", "vfat", "-o", "ro", partition, str(mount_point)]
+        )
+        if result.returncode != 0:
+            self.logger.error("Failed to mount drive for space check", error=result.stderr)
+            await self._run_command(["losetup", "-d", loop_dev])
+            return 0
+
         try:
-            # Check if the gadget is active in the system
-            udc_path = Path("/sys/kernel/config/usb_gadget/blink_storage/UDC")
-            if udc_path.exists():
-                with open(udc_path, "r") as f:
-                    content = f.read().strip()
-                    return bool(content)
-            return False
+            return psutil.disk_usage(str(mount_point)).free
         except Exception as e:
-            self.logger.error("Failed to check connection status", error=str(e))
-            return False
-    
+            self.logger.error("Failed to read free space", error=str(e))
+            return 0
+        finally:
+            await self._run_command(["umount", str(mount_point)])
+            await self._run_command(["losetup", "-d", loop_dev])
+
     async def _cleanup_old_files(self) -> None:
-        """Clean up old files to free up space."""
-        self.logger.info("Cleaning up old files")
-        
+        """Stop Storage Mode, delete old files from the virtual drive, then restart."""
+        self.logger.info("Cleaning up old files from virtual drive")
+        mount_point = self.settings.watcher.shadow_mount_point
+        mount_point.mkdir(parents=True, exist_ok=True)
+
+        # Unload g_mass_storage so we can mount the image writably
+        result = await self._run_command(["sudo", "modprobe", "-r", "g_mass_storage"])
+        if result.returncode != 0:
+            self.logger.error("Failed to unload g_mass_storage for cleanup", error=result.stderr)
+            return
+
         try:
-            # Mount the virtual drive if not already mounted
-            mount_point = Path("/mnt/blink_storage")
-            mount_point.mkdir(exist_ok=True)
-            
-            # Find and remove old files
-            cutoff_time = asyncio.get_event_loop().time() - self.settings.storage.retention_days * 86400
-            
-            for file_path in mount_point.rglob("*"):
-                if file_path.is_file():
-                    if file_path.stat().st_mtime < cutoff_time:
+            result = await self._run_command(["losetup", "-fP", str(self.virtual_drive_path)])
+            if result.returncode != 0:
+                self.logger.error("Failed to create loop device for cleanup", error=result.stderr)
+                return
+
+            result = await self._run_command(["losetup", "-j", str(self.virtual_drive_path)])
+            if result.returncode != 0 or not result.stdout.strip():
+                self.logger.error("Could not find loop device for cleanup")
+                return
+
+            loop_dev = result.stdout.strip().splitlines()[0].split(":")[0]
+            partition = f"{loop_dev}p1"
+
+            for _ in range(10):
+                if Path(partition).exists():
+                    break
+                await self._run_command(["partprobe", loop_dev])
+                await asyncio.sleep(0.5)
+
+            result = await self._run_command(
+                ["mount", "-t", "vfat", partition, str(mount_point)]
+            )
+            if result.returncode != 0:
+                self.logger.error("Failed to mount drive for cleanup", error=result.stderr)
+                await self._run_command(["losetup", "-d", loop_dev])
+                return
+
+            try:
+                cutoff = time.time() - self.settings.storage.retention_days * 86400
+                removed = 0
+                for file_path in mount_point.rglob("*"):
+                    if file_path.is_file() and file_path.stat().st_mtime < cutoff:
                         file_path.unlink()
+                        removed += 1
                         self.logger.debug("Removed old file", file=str(file_path))
-            
-            self.logger.info("Cleanup completed")
-            
-        except Exception as e:
-            self.logger.error("Failed to cleanup old files", error=str(e))
-    
-    async def _run_command(self, cmd: list, shell: bool = False) -> subprocess.CompletedProcess:
-        """Run a shell command asynchronously."""
-        if shell:
-            cmd = " ".join(cmd)
-        
+                self.logger.info("Cleanup completed", files_removed=removed)
+            finally:
+                await self._run_command(["umount", str(mount_point)])
+                await self._run_command(["losetup", "-d", loop_dev])
+
+        finally:
+            # Always restart Storage Mode regardless of cleanup outcome
+            reload = await self._run_command(
+                ["sudo", str(self._scripts_dir / "start_storage_mode.sh")]
+            )
+            if reload.returncode != 0:
+                self.logger.error("Failed to restart Storage Mode after cleanup", error=reload.stderr)
+                self.is_active = False
+
+    async def _run_command(self, cmd: list) -> subprocess.CompletedProcess:
+        """Run a command asynchronously and return a CompletedProcess."""
         process = await asyncio.create_subprocess_exec(
-            *cmd if not shell else cmd,
+            *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            shell=shell,
         )
-        
         stdout, stderr = await process.communicate()
         return subprocess.CompletedProcess(
             cmd, process.returncode, stdout.decode(), stderr.decode()
-        ) 
+        )
