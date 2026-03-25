@@ -1,6 +1,6 @@
 [Unit]
-Description=Blink Drive (USB Gadget) Service - Simple
-After=network.target
+Description=Blink Drive (USB Gadget) Service
+After=multi-user.target
 
 [Service]
 Type=oneshot
