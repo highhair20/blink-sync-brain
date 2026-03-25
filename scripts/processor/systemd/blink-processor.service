@@ -6,6 +6,11 @@ After=network.target
 Type=simple
 ExecStart=/usr/bin/env blink-processor start --config /opt/blink-lens/configs/processor.yaml
 Restart=on-failure
+RestartSec=10
+User=root
+Group=root
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

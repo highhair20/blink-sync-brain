@@ -44,7 +44,7 @@ async def _start_processing(settings: Settings) -> int:
 
 async def _run() -> int:
     args = parse_args()
-    settings = Settings(config_path=args.config) if getattr(args, "config", None) else Settings()
+    settings = Settings.from_file(args.config) if getattr(args, "config", None) else Settings()
 
     if args.command == "process-video":
         face = FaceRecognitionEngine(settings)

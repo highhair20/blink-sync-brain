@@ -33,7 +33,7 @@ def parse_args() -> argparse.Namespace:
 async def _run() -> int:
     args = parse_args()
     logger = structlog.get_logger()
-    settings = Settings(config_path=args.config) if getattr(args, "config", None) else Settings()
+    settings = Settings.from_file(args.config) if getattr(args, "config", None) else Settings()
     manager = USBGadgetManager(settings)
 
     if args.command == "start":

@@ -48,7 +48,7 @@ mypy src/           # Type check (strict mode: disallow_untyped_defs, etc.)
 
 The codebase is split by Pi role. Each role has its own CLI entry point, optional dependencies, config file, and systemd service:
 
-- **Drive** (`src/blink_lens/drive/`) — CLI: `blink-drive setup|start|stop|status`
+- **Drive** (`src/blink_lens/drive/`) — CLI: `blink-drive setup|start|stop|status|watch`
 - **Processor** (`src/blink_lens/processor/`) — CLI: `blink-processor start|process-video|status`
 
 Entry points are registered in `pyproject.toml` under `[project.scripts]`.
@@ -57,7 +57,8 @@ Entry points are registered in `pyproject.toml` under `[project.scripts]`.
 
 Shared business logic used by both roles:
 
-- `usb_gadget.py` — `USBGadgetManager`: virtual drive image creation, USB gadget lifecycle, mode switching (Storage Mode for Blink access vs Server Mode for processor access via rsync/SSH)
+- `usb_gadget.py` — `USBGadgetManager`: virtual drive image creation, USB gadget lifecycle (Storage Mode via `g_mass_storage` stays active permanently; clips are transferred via a short-lived read-only shadow mount alongside the active gadget — there is no mode switching)
+- `file_watcher.py` — `FileWatcher`: polls virtual drive image mtime, shadow-mounts it read-only via loop device when stable, rsyncs new clips to Pi #2 over SSH, tracks pushed files in `watcher_state.json`
 - `video_processor.py` — `VideoProcessor`: frame extraction, face recognition integration, directory monitoring, processing queue
 - `face_recognition.py` — `FaceRecognitionEngine`: face detection/encoding via `face_recognition` lib, known-face database (pickled numpy arrays), confidence scoring
 - `storage_manager.py` — `StorageManager`: disk usage monitoring, retention policy enforcement (default 30 days, 80% threshold)
@@ -67,9 +68,9 @@ The `drive/` and `processor/` role modules re-export from `core/` and add CLI ar
 
 ### Configuration (`src/blink_lens/config/settings.py`)
 
-Dataclass-based settings with nested sections: `StorageSettings`, `ProcessingSettings`, `FaceRecognitionSettings`, `NotificationSettings`, `NetworkSettings`, `LoggingSettings`.
+Dataclass-based settings with nested sections: `StorageSettings`, `ProcessingSettings`, `FaceRecognitionSettings`, `NotificationSettings`, `WatcherSettings`, `NetworkSettings`, `LoggingSettings`.
 
-Loading precedence: dataclass defaults → `.env` file → YAML config file. Config files live in `configs/drive.yaml` and `configs/processor.yaml`. Key environment variables: `VIRTUAL_DRIVE_PATH`, `VIDEO_DIRECTORY`, `FACE_DATABASE_PATH`, `FACE_CONFIDENCE_THRESHOLD`, `LOG_LEVEL`.
+Loading precedence: dataclass defaults → `.env` file → environment variables → YAML config file (YAML wins). Use `Settings.from_file(path)` to load from YAML; `Settings()` uses defaults + env only. Config files live in `configs/drive.yaml` and `configs/processor.yaml`. Key environment variables: `VIRTUAL_DRIVE_PATH`, `VIDEO_DIRECTORY`, `FACE_DATABASE_PATH`, `FACE_CONFIDENCE_THRESHOLD`, `PROCESSOR_HOST`, `SSH_KEY_PATH`, `LOG_LEVEL`.
 
 ### Data Models (`src/blink_lens/models/`)
 
@@ -88,5 +89,7 @@ Both CLI entry points use `async def _run()` with `asyncio.run()`. Video process
 /var/blink_storage/videos/              # Extracted video clips
 /var/blink_storage/results/             # Processing results
 /var/blink_storage/face_database.pkl    # Known faces database
-/var/log/blink_lens/app.log       # Application logs
+/var/blink_storage/watcher_state.json   # Tracks which clips have been pushed to Pi #2
+/mnt/blink_shadow                       # Temporary read-only shadow mount point
+/var/log/blink_lens/app.log             # Application logs
 ```

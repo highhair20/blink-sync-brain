@@ -14,6 +14,7 @@ watcher:
   settle_seconds: 10          # seconds of no changes before scanning
   rsync_timeout: 30
   shadow_mount_point: "/mnt/blink_shadow"
+  state_file: "/var/blink_storage/watcher_state.json"
 
 logging:
   level: "INFO"
