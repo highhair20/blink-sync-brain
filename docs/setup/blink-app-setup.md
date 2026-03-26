@@ -65,7 +65,7 @@ sudo /opt/blink-lens/scripts/drive/install-app.sh
 ### Step 6: Test Storage Mode
 
 ```bash
-sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
+blink-drive start
 
 # Verify
 lsmod | grep g_mass_storage
@@ -119,10 +119,6 @@ Install both service files — the drive service (Storage Mode at boot) and the 
 
 ```bash
 sudo /opt/blink-lens/scripts/drive/install-service.sh
-
-sudo cp /opt/blink-lens/scripts/drive/systemd/blink-watcher.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable blink-watcher
 sudo reboot
 ```
 
@@ -154,8 +150,7 @@ After reboot, SSH back in and confirm both services are running:
 ssh pi@blink-usb.local
 
 # Storage Mode should be active
-/opt/blink-lens/scripts/drive/status.sh
-# Expected: Storage Mode (Blink can write)
+blink-drive status
 
 # Watcher service should be running
 sudo systemctl status blink-watcher
