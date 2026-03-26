@@ -59,7 +59,7 @@ sudo /opt/blink-lens/scripts/drive/create-virtual-storage.sh
 
 ```bash
 screen
-/opt/blink-lens/scripts/drive/install-app.sh
+sudo /opt/blink-lens/scripts/drive/install-app.sh
 ```
 
 ### Step 6: Test Storage Mode
@@ -70,7 +70,6 @@ sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
 # Verify
 lsmod | grep g_mass_storage
 dmesg | tail -10
-lsusb
 ```
 
 The defaults in `configs/drive.yaml` match a standard setup (32 GB drive at `/var/blink_storage/virtual_drive.img`). To override them, pass a config file:
