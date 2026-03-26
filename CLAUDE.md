@@ -48,7 +48,7 @@ mypy src/           # Type check (strict mode: disallow_untyped_defs, etc.)
 
 The codebase is split by Pi role. Each role has its own CLI entry point, optional dependencies, config file, and systemd service:
 
-- **Drive** (`src/blink_lens/drive/`) — CLI: `blink-drive setup|start|stop|status|watch`
+- **Drive** (`src/blink_lens/drive/`) — CLI: `blink-drive start|stop|status|watch`
 - **Processor** (`src/blink_lens/processor/`) — CLI: `blink-processor start|process-video|status`
 
 Entry points are registered in `pyproject.toml` under `[project.scripts]`.

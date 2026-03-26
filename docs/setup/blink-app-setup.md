@@ -637,8 +637,6 @@ sudo apt autoremove && sudo apt autoclean  # Clean cache
 
 ```bash
 # Pi #1 (Drive)
-blink-drive setup                                              # Configure USB gadget and create virtual drive
-blink-drive setup --skip-image                                 # Configure USB gadget only (skip 32GB image creation)
 blink-drive start                                             # Start Storage Mode (load g_mass_storage)
 blink-drive stop                                              # Stop Storage Mode
 blink-drive status                                            # Show gadget status

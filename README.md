@@ -49,7 +49,7 @@ Blink cameras don't provide local storage or advanced video analysis. This proje
 ## 🍓 Roles and CLIs
 
 - Pi #1 Drive CLI: `blink-drive`
-  - `blink-drive setup|start|stop|status`
+  - `blink-drive start|stop|status|watch`
 - Pi #2 Processor CLI: `blink-processor`
   - `blink-processor start|status|process-video <file>`
 

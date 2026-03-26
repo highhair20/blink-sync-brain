@@ -21,11 +21,6 @@ def parse_args() -> argparse.Namespace:
 
     sub.add_parser("status", help="Show gadget status")
 
-    setup = sub.add_parser("setup", help="Setup USB gadget (create drive, config gadget)")
-    setup.add_argument("--config", type=Path)
-    setup.add_argument("--skip-image", action="store_true",
-                       help="Skip virtual drive image creation (e.g. image already exists)")
-
     watch = sub.add_parser("watch", help="Watch for new clips and push to processor Pi")
     watch.add_argument("--config", type=Path)
 
@@ -43,10 +38,6 @@ async def _run() -> int:
         return 0 if ok else 1
     if args.command == "stop":
         ok = await manager.stop_usb_gadget()
-        return 0 if ok else 1
-    if args.command == "setup":
-        skip_image = getattr(args, "skip_image", False)
-        ok = await manager.setup_usb_gadget(skip_image=skip_image)
         return 0 if ok else 1
     if args.command == "status":
         status = await manager.get_status()

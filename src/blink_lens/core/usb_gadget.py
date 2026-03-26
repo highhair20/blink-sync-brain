@@ -46,55 +46,6 @@ class USBGadgetManager:
         self.is_active = False
         self._scripts_dir = _find_scripts_dir()
 
-    async def setup_usb_gadget(self, skip_image: bool = False) -> bool:
-        """
-        Setup USB gadget mode.
-
-        Runs enable-usb-gadget.sh to modify boot config (dwc2 overlay + module)
-        and creates the virtual drive image if it does not already exist.
-        A reboot is required for the boot config changes to take effect.
-
-        Args:
-            skip_image: If True, skip virtual drive image creation entirely.
-
-        Returns:
-            bool: True if setup was successful, False otherwise
-        """
-        try:
-            self.logger.info("Setting up USB gadget mode")
-
-            if not self._is_raspberry_pi():
-                self.logger.error("Not running on Raspberry Pi")
-                return False
-
-            # Modify boot config for USB gadget mode (requires reboot to apply)
-            enable_script = self._scripts_dir / "enable-usb-gadget.sh"
-            result = await self._run_command(["sudo", str(enable_script)])
-            if result.returncode != 0:
-                self.logger.error("Failed to enable USB gadget boot config", error=result.stderr)
-                return False
-
-            if skip_image:
-                self.logger.info("Skipping virtual drive image creation (--skip-image)")
-            elif not self.virtual_drive_path.exists():
-                if not await self._create_virtual_drive():
-                    return False
-            else:
-                self.logger.info(
-                    "Virtual drive already exists, skipping creation",
-                    path=str(self.virtual_drive_path),
-                )
-
-            self.is_configured = True
-            self.logger.info(
-                "USB gadget setup complete — reboot to apply boot config changes"
-            )
-            return True
-
-        except Exception as e:
-            self.logger.error("Failed to setup USB gadget", error=str(e), exc_info=True)
-            return False
-
     async def start_usb_gadget(self) -> bool:
         """
         Start Storage Mode: load g_mass_storage so Blink can write to the virtual drive.
