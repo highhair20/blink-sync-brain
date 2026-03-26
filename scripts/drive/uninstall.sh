@@ -34,7 +34,12 @@ done
 
 systemctl daemon-reload
 
-# ── Remove Python virtualenv ──────────────────────────────────────────────────
+# ── Remove symlink and Python virtualenv ─────────────────────────────────────
+if [[ -L /usr/local/bin/blink-drive ]]; then
+    echo "Removing /usr/local/bin/blink-drive symlink..."
+    rm /usr/local/bin/blink-drive
+fi
+
 VENV="/opt/blink-lens/env"
 if [[ -d "${VENV}" ]]; then
     echo "Removing virtualenv at ${VENV}..."
