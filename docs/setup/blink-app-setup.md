@@ -127,19 +127,19 @@ sudo systemctl enable blink-watcher
 sudo reboot
 ```
 
-### Mode Switching Scripts
+### Manual Drive Access Scripts
 
-The mode scripts in `scripts/drive/` are still available for manual use or diagnostics:
+The scripts in `scripts/drive/` are available for manual use or diagnostics. Under normal operation the watcher handles transfers automatically — only use these to inspect or recover the drive.
 
 - **`start_storage_mode.sh`** — Loads `g_mass_storage`, making the virtual drive visible to Blink.
-- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the drive at `/mnt/blink_drive` for manual rsync access.
-- **`status.sh`** — Shows the current mode.
+- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the drive at `/mnt/blink_drive` for direct read access.
+- **`status.sh`** — Shows whether `g_mass_storage` is loaded.
 
 ```bash
-# Check current mode
+# Check current status
 /opt/blink-lens/scripts/drive/status.sh
 
-# Manual mode switch (stops automatic watcher — use for diagnostics only)
+# Manual clip transfer (stop watcher first — for diagnostics only)
 sudo systemctl stop blink-watcher
 sudo /opt/blink-lens/scripts/drive/start_server_mode.sh
 rsync -av /mnt/blink_drive/ pi@192.168.1.201:/var/blink_storage/videos/
@@ -389,9 +389,8 @@ sudo /opt/blink-lens/scripts/drive/diagnose_usb_gadget.sh
    ```bash
    ls -la /var/blink_storage/
 
-   # Create manually if needed
-   sudo dd if=/dev/zero of=/var/blink_storage/virtual_drive.img bs=1G count=32
-   sudo mkfs.vfat /var/blink_storage/virtual_drive.img
+   # Create manually if needed (preferred — handles partitioning correctly)
+   sudo /opt/blink-lens/scripts/drive/create-virtual-storage.sh
    ```
 
 ### File Watcher Issues
@@ -412,9 +411,9 @@ sudo /opt/blink-lens/scripts/drive/diagnose_usb_gadget.sh
    # Test SSH access from Pi #1 to Pi #2 manually
    ssh pi@192.168.1.201 "echo SSH OK"
 
-   # Test rsync manually
+   # Test rsync manually (replace clip.mp4 with an actual file from the shadow mount)
    rsync -az -e "ssh -i /home/pi/.ssh/id_rsa" \
-     /mnt/blink_shadow/DCIM/clip.mp4 \
+     /mnt/blink_shadow/clip.mp4 \
      pi@192.168.1.201:/var/blink_storage/videos/
    ```
 
@@ -638,7 +637,8 @@ sudo apt autoremove && sudo apt autoclean  # Clean cache
 
 ```bash
 # Pi #1 (Drive)
-blink-drive setup                                              # Create virtual drive and configure USB gadget
+blink-drive setup                                              # Configure USB gadget and create virtual drive
+blink-drive setup --skip-image                                 # Configure USB gadget only (skip 32GB image creation)
 blink-drive start                                             # Start Storage Mode (load g_mass_storage)
 blink-drive stop                                              # Stop Storage Mode
 blink-drive status                                            # Show gadget status
@@ -729,7 +729,7 @@ echo "Network: $(hostname -I)"
 #!/bin/bash
 BACKUP_DIR="/backup/$(date +%Y%m%d)"
 mkdir -p $BACKUP_DIR
-cp /etc/blink-lens/config.yaml $BACKUP_DIR/
+cp /opt/blink-lens/configs/drive.yaml $BACKUP_DIR/
 cp /var/blink_storage/face_database.pkl $BACKUP_DIR/
 cp /var/log/blink_monitor.log $BACKUP_DIR/
 echo "Backup completed: $BACKUP_DIR"
@@ -741,7 +741,8 @@ echo "Backup completed: $BACKUP_DIR"
 /boot/firmware/config.txt          # Boot configuration
 /etc/modules                       # System modules
 /etc/ssh/sshd_config               # SSH configuration
-/etc/blink-lens/config.yaml  # Blink Lens config
+/opt/blink-lens/configs/drive.yaml      # Drive Pi config
+/opt/blink-lens/configs/processor.yaml  # Processor Pi config
 ```
 
 ---
