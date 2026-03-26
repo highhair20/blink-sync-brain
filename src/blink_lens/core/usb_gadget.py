@@ -46,13 +46,16 @@ class USBGadgetManager:
         self.is_active = False
         self._scripts_dir = _find_scripts_dir()
 
-    async def setup_usb_gadget(self) -> bool:
+    async def setup_usb_gadget(self, skip_image: bool = False) -> bool:
         """
         Setup USB gadget mode.
 
         Runs enable-usb-gadget.sh to modify boot config (dwc2 overlay + module)
         and creates the virtual drive image if it does not already exist.
         A reboot is required for the boot config changes to take effect.
+
+        Args:
+            skip_image: If True, skip virtual drive image creation entirely.
 
         Returns:
             bool: True if setup was successful, False otherwise
@@ -71,8 +74,9 @@ class USBGadgetManager:
                 self.logger.error("Failed to enable USB gadget boot config", error=result.stderr)
                 return False
 
-            # Create the virtual drive image if it doesn't exist yet
-            if not self.virtual_drive_path.exists():
+            if skip_image:
+                self.logger.info("Skipping virtual drive image creation (--skip-image)")
+            elif not self.virtual_drive_path.exists():
                 if not await self._create_virtual_drive():
                     return False
             else:
