@@ -10,131 +10,75 @@ This guide covers installing and configuring the Blink Lens software on both Ras
 
 ## Pi #1: Drive (USB Gadget) Setup
 
-Pi #1 emulates a USB flash drive for the Blink Sync Module. It runs in "Storage Mode" permanently — Blink always has its drive. A background file watcher detects new clips and pushes them to Pi #2 automatically over SSH, so no mode switching is required.
+Pi #1 emulates a USB flash drive for the Blink Sync Module. It runs in "Storage Mode" permanently — Blink always has its drive. A background file watcher detects new clips and pushes them to Pi #2 automatically over SSH.
 
-### Step 1: Clone the Repository
+### Step 1: Clone, Enable USB Gadget, and Reboot
 
 ```bash
 ssh pi@blink-usb.local
 
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git
-
 sudo mkdir -p /opt/blink-lens
 sudo chown pi:pi /opt/blink-lens
-git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
-```
-
-### Step 2: Enable USB Gadget Mode
-
-```bash
+sudo git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
 sudo /opt/blink-lens/scripts/drive/enable-usb-gadget.sh
 sudo reboot
 ```
 
-The script adds `dtoverlay=dwc2,dr_mode=peripheral` under the `[all]` section in `/boot/firmware/config.txt` and `dwc2` to `/etc/modules` (idempotently — safe to run twice). The `dr_mode=peripheral` is required for the Pi to act as a USB device rather than a USB host.
+> The enable script adds `dtoverlay=dwc2,dr_mode=peripheral` to `/boot/firmware/config.txt` and `dwc2` to `/etc/modules`. A reboot is required for these to take effect.
 
-**Note:** Do NOT add `g_mass_storage` to `/etc/modules`. It must be loaded with the `file=` parameter by the startup script, not at boot.
+### Step 2: Configure
 
-### Step 3: Install System Dependencies
-
-After reboot, SSH back in:
+After reboot, SSH back in. Set Pi #2's IP in the config and set up SSH key access:
 
 ```bash
 ssh pi@blink-usb.local
 
-sudo /opt/blink-lens/scripts/drive/install-deps.sh
-```
-
-### Step 4: Create the Virtual Storage
-
-Creates a 32 GB FAT32 disk image that acts as the flash drive's storage. This takes a while — running in `screen` is recommended.
-
-```bash
-screen
-sudo /opt/blink-lens/scripts/drive/create-virtual-storage.sh
-```
-
-### Step 5: Install the Application
-
-```bash
-screen
-sudo /opt/blink-lens/scripts/drive/install-app.sh
-```
-
-### Step 6: Test Storage Mode
-
-```bash
-blink-drive start
-
-# Verify
-lsmod | grep g_mass_storage
-dmesg | tail -10
-```
-
-The defaults in `configs/drive.yaml` match a standard setup (32 GB drive at `/var/blink_storage/virtual_drive.img`). To override them, pass a config file:
-
-```bash
-blink-drive start --config /path/to/config.yaml
-```
-
-### Step 7: Configure the File Watcher
-
-The file watcher runs on Pi #1 and pushes new clips to Pi #2 automatically. It shadow-mounts the virtual drive image read-only (alongside `g_mass_storage`) to detect new files without interrupting Blink's write access.
-
-**7a. Set Pi #2's address in the config:**
-
-```bash
+# Set Pi #2's IP address
 nano /opt/blink-lens/configs/drive.yaml
 ```
 
-Set `processor_host` to Pi #2's IP or hostname:
-
+Set `processor_host`:
 ```yaml
 watcher:
   processor_host: "192.168.1.201"   # Pi #2 IP or hostname
-  processor_user: "pi"
-  processor_video_path: "/var/blink_storage/videos"
-  ssh_key_path: "/home/pi/.ssh/id_rsa"
 ```
 
-**7b. Set up SSH key access from Pi #1 to Pi #2:**
-
-Pi #1 needs to rsync to Pi #2 without a password prompt. Run this on Pi #1:
-
+Then set up passwordless SSH from Pi #1 to Pi #2:
 ```bash
 ssh-keygen -t rsa -f /home/pi/.ssh/id_rsa -N ""
 ssh-copy-id -i /home/pi/.ssh/id_rsa.pub pi@192.168.1.201
-```
-
-Verify it works:
-
-```bash
 ssh pi@192.168.1.201 "echo SSH OK"
 ```
 
-### Step 8: Create Systemd Services
+### Step 3: Install and Reboot
 
-Install both service files — the drive service (Storage Mode at boot) and the watcher service (automatic clip transfer):
+Virtual drive image creation (32 GB) takes several minutes — run in `screen`:
 
 ```bash
-sudo /opt/blink-lens/scripts/drive/install-service.sh
+screen
+sudo /opt/blink-lens/scripts/drive/install.sh
 sudo reboot
 ```
 
-### Manual Drive Access Scripts
+### Step 4: Connect to Blink Sync Module
 
-The scripts in `scripts/drive/` are available for manual use or diagnostics. Under normal operation the watcher handles transfers automatically — only use these to inspect or recover the drive.
+1. Connect the Pi's **USB** (data) port to the Blink Sync Module using a USB-A to Micro USB cable
+2. Power the Pi via the **PWR** port — do not rely on power from the Sync Module
+3. In the Blink app, go to **Sync Module > Local Storage** — it should show a USB drive detected
+4. If prompted to format the drive, allow it
+5. Enable local storage if not already enabled
 
-- **`start_storage_mode.sh`** — Loads `g_mass_storage`, making the virtual drive visible to Blink.
-- **`start_server_mode.sh`** — Unloads `g_mass_storage` and loop-mounts the drive at `/mnt/blink_drive` for direct read access.
-- **`status.sh`** — Shows whether `g_mass_storage` is loaded.
+### Manual Drive Access
+
+The scripts in `scripts/drive/` are available for diagnostics. Under normal operation the watcher handles transfers automatically.
 
 ```bash
-# Check current status
-/opt/blink-lens/scripts/drive/status.sh
+# Check status
+blink-drive status
 
-# Manual clip transfer (stop watcher first — for diagnostics only)
+# Manual clip transfer (stop watcher first — diagnostics only)
 sudo systemctl stop blink-watcher
 sudo /opt/blink-lens/scripts/drive/start_server_mode.sh
 rsync -av /mnt/blink_drive/ pi@192.168.1.201:/var/blink_storage/videos/
@@ -142,92 +86,27 @@ sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
 sudo systemctl start blink-watcher
 ```
 
-### Step 9: Verify Services After Reboot
-
-After reboot, SSH back in and confirm both services are running:
-
-```bash
-ssh pi@blink-usb.local
-
-# Storage Mode should be active
-blink-drive status
-
-# Watcher service should be running
-sudo systemctl status blink-watcher
-sudo journalctl -u blink-watcher -f
-```
-
-### Step 10: Connect to Blink Sync Module
-
-1. Connect the Pi's **USB** (data) port to the Blink Sync Module using a USB-A to Micro USB cable
-2. Make sure the Pi is also powered via the **PWR** port — don't rely on power from the Sync Module
-3. In the Blink app, go to **Sync Module > Local Storage** — it should show a USB drive detected
-4. If prompted to format the drive, allow it — Blink needs its own filesystem structure
-5. Enable local storage if not already enabled
-
-Once configured, Blink will save clips to the virtual drive.
-
 ## Pi #2: Processor (Video & Face Recognition) Setup
 
 ### Step 1: Clone the Repository
 
 ```bash
+ssh pi@blink-processor.local
+
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git
-
 sudo mkdir -p /opt/blink-lens
 sudo chown pi:pi /opt/blink-lens
-git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
+sudo git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
 ```
 
-### Step 2: Install System Dependencies
+### Step 2: Install
 
-```bash
-sudo /opt/blink-lens/scripts/processor/install-deps.sh
-```
-
-### Step 3: Install the Application
+dlib/face-recognition compilation takes a long time — run in `screen`:
 
 ```bash
 screen
-/opt/blink-lens/scripts/processor/install-app.sh
-```
-
-### Step 4: Configure the Processor
-
-The repo includes `configs/processor.yaml` with Pi Zero 2 W–tuned defaults (lower concurrency, higher face confidence). Review and edit it if needed:
-
-```bash
-nano /opt/blink-lens/configs/processor.yaml
-```
-
-Pass it when starting the processor:
-```bash
-blink-processor start --config /opt/blink-lens/configs/processor.yaml
-```
-
-### Step 5: Setup Storage Directories
-
-```bash
-sudo /opt/blink-lens/scripts/processor/setup-storage.sh
-```
-
-### Step 6: Setup Face Recognition Database
-
-```bash
-# Create directory for face images
-mkdir -p ~/face_images
-
-# Add known faces (place face images in the directory)
-# Image names should be: person_name.jpg
-
-# TODO: Face database setup command is not yet implemented.
-```
-
-### Step 7: Create Systemd Service
-
-```bash
-sudo /opt/blink-lens/scripts/processor/install-service.sh
+sudo /opt/blink-lens/scripts/processor/install.sh
 ```
 
 ## System Integration & Networking
@@ -250,22 +129,6 @@ sudo nmcli connection modify "Wi-Fi" ipv4.method "manual"
 # Restart the connection
 sudo nmcli connection down "Wi-Fi"
 sudo nmcli connection up "Wi-Fi"
-```
-
-### Setup SSH Key Access Between Pis
-
-Pi #1 pushes clips to Pi #2 via rsync, so Pi #1 needs passwordless SSH access to Pi #2. Run this on Pi #1:
-
-```bash
-ssh-keygen -t rsa -f /home/pi/.ssh/id_rsa -N ""
-ssh-copy-id -i /home/pi/.ssh/id_rsa.pub pi@192.168.1.201
-```
-
-For general management access from your workstation, also copy your own key to both Pis:
-
-```bash
-ssh-copy-id pi@192.168.1.200   # Pi #1
-ssh-copy-id pi@192.168.1.201   # Pi #2
 ```
 
 ### Test Video Transfer
