@@ -15,7 +15,7 @@ Pi #1 emulates a USB flash drive for the Blink Sync Module. It runs in "Storage 
 ### Step 1: Clone, Enable USB Gadget, and Reboot
 
 ```bash
-ssh pi@blink-usb.local
+ssh pi@blink-drive.local
 
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y git
@@ -33,7 +33,7 @@ sudo reboot
 After reboot, SSH back in. Set Pi #2's IP in the config and set up SSH key access:
 
 ```bash
-ssh pi@blink-usb.local
+ssh pi@blink-drive.local
 
 # Set Pi #2's IP address
 nano /opt/blink-lens/configs/drive.yaml

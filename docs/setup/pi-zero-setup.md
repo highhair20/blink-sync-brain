@@ -13,7 +13,7 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 - **MicroSD Cards** (64GB+ recommended, Class 10 or higher)
 - **Power Supplies** (5V/2.5A Micro USB power supplies)
 
-### Additional for blink-usb (Pi #1 — USB Gadget):
+### Additional for blink-drive (Pi #1 — USB Gadget):
 - **USB-A to Micro USB cable** (to connect to Blink Sync Module)
 
 ### Additional for blink-processor (Pi #2 — Video Processing):
@@ -64,7 +64,7 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
 1. **Set Hostname & Localisation**
 
-   Here you can set the hostname (`blink-usb` for Pi #1, `blink-processor` for Pi #2).
+   Here you can set the hostname (`blink-drive` for Pi #1, `blink-processor` for Pi #2).
    <div align="center">
       <img src="images/05_setup_pi.png" alt="Enabling SSH access" width="600" />
    </div>
@@ -147,7 +147,7 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
    Insert the Micro SD card in to your Pi and power it up. Wait a couple of minutes for the LED to stop flashing. At this point you can SSH into the pi using the hostname.
    ```
-   ssh pi@blink-usb.local
+   ssh pi@blink-drive.local
    ```
 
    **Note:** Raspberry Pi OS automatically expands the filesystem to use the full SD card on first boot. No manual expansion is needed.
@@ -160,7 +160,7 @@ This guide provides detailed instructions for setting up a headless Raspberry Pi
 
 Once both Pis are running and accessible via SSH, proceed to the [Application Setup Guide](blink-app-setup.md) to configure:
 
-- **blink-usb (Pi #1)** — USB gadget mode, virtual storage, and systemd service
+- **blink-drive (Pi #1)** — USB gadget mode, virtual storage, and systemd service
 - **blink-processor (Pi #2)** — Video processing dependencies, face recognition, and systemd service
 
 ## 📚 Additional Resources
