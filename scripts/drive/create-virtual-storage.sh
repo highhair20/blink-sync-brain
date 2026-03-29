@@ -11,6 +11,8 @@ mkdir -p "${STORAGE_DIR}"
 chown pi:pi "${STORAGE_DIR}"
 chmod 755 "${STORAGE_DIR}"
 
+mkdir -p /mnt/blink_shadow
+
 # Create the disk image
 dd if=/dev/zero of="${DRIVE_IMG}" bs=1M count="${SIZE_MB}" status=progress
 

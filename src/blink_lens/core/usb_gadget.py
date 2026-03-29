@@ -174,12 +174,12 @@ class USBGadgetManager:
         mount_point = self.settings.watcher.shadow_mount_point
         mount_point.mkdir(parents=True, exist_ok=True)
 
-        result = await self._run_command(["losetup", "-fP", str(self.virtual_drive_path)])
+        result = await self._run_command(["sudo", "losetup", "-fP", str(self.virtual_drive_path)])
         if result.returncode != 0:
             self.logger.error("Failed to create loop device for space check", error=result.stderr)
             return 0
 
-        result = await self._run_command(["losetup", "-j", str(self.virtual_drive_path)])
+        result = await self._run_command(["sudo", "losetup", "-j", str(self.virtual_drive_path)])
         if result.returncode != 0 or not result.stdout.strip():
             return 0
 
@@ -189,15 +189,15 @@ class USBGadgetManager:
         for _ in range(10):
             if Path(partition).exists():
                 break
-            await self._run_command(["partprobe", loop_dev])
+            await self._run_command(["sudo", "partprobe", loop_dev])
             await asyncio.sleep(0.5)
 
         result = await self._run_command(
-            ["mount", "-t", "vfat", "-o", "ro", partition, str(mount_point)]
+            ["sudo", "mount", "-t", "vfat", "-o", "ro", partition, str(mount_point)]
         )
         if result.returncode != 0:
             self.logger.error("Failed to mount drive for space check", error=result.stderr)
-            await self._run_command(["losetup", "-d", loop_dev])
+            await self._run_command(["sudo", "losetup", "-d", loop_dev])
             return 0
 
         try:
@@ -206,8 +206,8 @@ class USBGadgetManager:
             self.logger.error("Failed to read free space", error=str(e))
             return 0
         finally:
-            await self._run_command(["umount", str(mount_point)])
-            await self._run_command(["losetup", "-d", loop_dev])
+            await self._run_command(["sudo", "umount", str(mount_point)])
+            await self._run_command(["sudo", "losetup", "-d", loop_dev])
 
     async def _cleanup_old_files(self) -> None:
         """Stop Storage Mode, delete old files from the virtual drive, then restart."""
@@ -222,12 +222,12 @@ class USBGadgetManager:
             return
 
         try:
-            result = await self._run_command(["losetup", "-fP", str(self.virtual_drive_path)])
+            result = await self._run_command(["sudo", "losetup", "-fP", str(self.virtual_drive_path)])
             if result.returncode != 0:
                 self.logger.error("Failed to create loop device for cleanup", error=result.stderr)
                 return
 
-            result = await self._run_command(["losetup", "-j", str(self.virtual_drive_path)])
+            result = await self._run_command(["sudo", "losetup", "-j", str(self.virtual_drive_path)])
             if result.returncode != 0 or not result.stdout.strip():
                 self.logger.error("Could not find loop device for cleanup")
                 return
@@ -238,15 +238,15 @@ class USBGadgetManager:
             for _ in range(10):
                 if Path(partition).exists():
                     break
-                await self._run_command(["partprobe", loop_dev])
+                await self._run_command(["sudo", "partprobe", loop_dev])
                 await asyncio.sleep(0.5)
 
             result = await self._run_command(
-                ["mount", "-t", "vfat", partition, str(mount_point)]
+                ["sudo", "mount", "-t", "vfat", partition, str(mount_point)]
             )
             if result.returncode != 0:
                 self.logger.error("Failed to mount drive for cleanup", error=result.stderr)
-                await self._run_command(["losetup", "-d", loop_dev])
+                await self._run_command(["sudo", "losetup", "-d", loop_dev])
                 return
 
             try:
@@ -259,8 +259,8 @@ class USBGadgetManager:
                         self.logger.debug("Removed old file", file=str(file_path))
                 self.logger.info("Cleanup completed", files_removed=removed)
             finally:
-                await self._run_command(["umount", str(mount_point)])
-                await self._run_command(["losetup", "-d", loop_dev])
+                await self._run_command(["sudo", "umount", str(mount_point)])
+                await self._run_command(["sudo", "losetup", "-d", loop_dev])
 
         finally:
             # Always restart Storage Mode regardless of cleanup outcome

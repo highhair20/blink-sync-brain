@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "Installing system dependencies for Blink Processor..."
-apt install -y python3 python3-pip
+apt install -y python3 python3-pip screen
 
 # Video processing
 apt install -y ffmpeg libgomp1

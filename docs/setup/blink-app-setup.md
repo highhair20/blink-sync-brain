@@ -18,10 +18,10 @@ Pi #1 emulates a USB flash drive for the Blink Sync Module. It runs in "Storage 
 ssh pi@blink-drive.local
 
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git
+sudo apt install -y git screen
 sudo mkdir -p /opt/blink-lens
-sudo chown pi:pi /opt/blink-lens
 sudo git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
+sudo chown -R pi:pi /opt/blink-lens
 sudo /opt/blink-lens/scripts/drive/enable-usb-gadget.sh
 sudo reboot
 ```
@@ -31,6 +31,8 @@ sudo reboot
 ### Step 2: Configure
 
 After reboot, SSH back in. Set Pi #2's IP in the config and set up SSH key access:
+
+> Pi #2 must be booted and reachable on the network before proceeding with SSH key setup.
 
 ```bash
 ssh pi@blink-drive.local
@@ -47,6 +49,7 @@ watcher:
 
 Then set up passwordless SSH from Pi #1 to Pi #2:
 ```bash
+mkdir -p /home/pi/.ssh && chmod 700 /home/pi/.ssh
 ssh-keygen -t rsa -f /home/pi/.ssh/id_rsa -N ""
 ssh-copy-id -i /home/pi/.ssh/id_rsa.pub pi@192.168.1.201
 ssh pi@192.168.1.201 "echo SSH OK"
@@ -54,10 +57,10 @@ ssh pi@192.168.1.201 "echo SSH OK"
 
 ### Step 3: Install and Reboot
 
-Virtual drive image creation (32 GB) takes several minutes — run in `screen`:
+Virtual drive image creation (32 GB) takes several minutes — run in `screen` so it survives a disconnection:
 
 ```bash
-screen
+screen -S install
 sudo /opt/blink-lens/scripts/drive/install.sh
 sudo reboot
 ```
@@ -81,7 +84,7 @@ blink-drive status
 # Manual clip transfer (stop watcher first — diagnostics only)
 sudo systemctl stop blink-watcher
 sudo /opt/blink-lens/scripts/drive/start_server_mode.sh
-rsync -av /mnt/blink_drive/ pi@192.168.1.201:/var/blink_storage/videos/
+rsync -av /mnt/blink_shadow/ pi@192.168.1.201:/var/blink_storage/videos/
 sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
 sudo systemctl start blink-watcher
 ```
@@ -94,28 +97,22 @@ sudo systemctl start blink-watcher
 ssh pi@blink-processor.local
 
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git
+sudo apt install -y git screen
 sudo mkdir -p /opt/blink-lens
-sudo chown pi:pi /opt/blink-lens
 sudo git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
+sudo chown -R pi:pi /opt/blink-lens
 ```
 
 ### Step 2: Install
 
-dlib/face-recognition compilation takes a long time — run in `screen`:
+dlib/face-recognition compilation takes a long time — run in `screen` so it survives a disconnection:
 
 ```bash
-screen
+screen -S install
 sudo /opt/blink-lens/scripts/processor/install.sh
 ```
 
 ## System Integration & Networking
-
-### Connect Pi #1 to Blink Sync Module
-
-1. Connect Pi #1 to Blink Sync Module using USB-A to Micro USB cable
-2. Power on Pi #1 and wait for USB gadget to initialize
-3. In Blink app, go to Sync Module settings > Local Storage > select the USB drive
 
 ### Configure Static IPs
 
