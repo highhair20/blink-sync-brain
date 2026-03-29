@@ -1,78 +1,43 @@
 # Blink Lens
 
-A Raspberry Pi-based system that extends Blink security cameras with face recognition, local video storage, and intelligent video processing. Two Raspberry Pi Zero 2 Ws work together in a dual-role architecture to intercept, analyze, and manage video clips from Blink cameras.
+A Raspberry Pi-based system that extends Blink security cameras with local video storage and face recognition. Two Raspberry Pi Zero 2 Ws work together — one emulates a USB flash drive for the Blink Sync Module, the other processes the captured clips.
 
-## Overview
+## How It Works
 
-Blink cameras don't provide local storage or advanced video analysis. This project solves that by intercepting the Blink Sync Module's USB connection using a virtual USB gadget, capturing clips locally, and running machine learning-based face recognition on a dedicated processor Pi.
-
-## 📖 Getting Started
-
-- **[Hardware & OS Setup](./docs/setup/pi-zero-setup.md)** — Flashing SD cards, first boot, SSH, expand filesystem
-- **[Application Setup](./docs/setup/blink-app-setup.md)** — Software install, USB gadget config, processor config, systemd, networking, troubleshooting
-
-### Architecture
-
-| | Pi #1 — Drive (USB Gadget) | Pi #2 — Processor (Video & Face Recognition) |
-|---|---|---|
-| **Role** | Emulates a USB flash drive to the Blink Sync Module | Processes intercepted video clips and performs face recognition |
-| **Key Components** | `USBGadgetManager` | `VideoProcessor`, `FaceRecognitionEngine` |
-| **Capabilities** | Virtual 32GB FAT32 drive image, mode switching between Storage Mode (Blink access) and Server Mode (processor access), rsync-over-SSH file transfer, storage monitoring | Frame extraction, face detection and matching against a known-faces database, batch processing, result storage and metadata tracking |
+Blink cameras save clips to the Blink Sync Module via USB. Pi #1 intercepts this by presenting itself as a USB flash drive using Linux USB gadget mode. A file watcher detects new clips and pushes them to Pi #2 over SSH. Pi #2 extracts frames, runs face detection and recognition, and fires notifications for unknown faces.
 
 ### Data Flow
 
-1. **Capture** — Blink camera records a clip and writes it to what it thinks is a USB drive (actually Pi #1's virtual drive image)
-2. **Transfer** — Pi #1 switches to Server Mode so Pi #2 can access new clips
-3. **Process** — Pi #2 extracts frames, runs face detection/recognition against the known-faces database
-4. **Notify** — Known faces are logged; unknown faces trigger notifications (email, Pushbullet, or webhooks)
-5. **Cleanup** — Old clips are automatically removed based on configurable retention policies (default: 30 days, 80% storage threshold)
+1. **Capture** — Blink writes a clip to what it thinks is a USB drive (Pi #1's virtual 32GB FAT32 image)
+2. **Transfer** — Pi #1's file watcher shadow-mounts the image read-only, detects new files, and rsyncs them to Pi #2
+3. **Process** — Pi #2 extracts frames and runs face detection/recognition against a known-faces database
+4. **Notify** — Unknown faces trigger notifications (email, Pushbullet, or webhooks)
+5. **Cleanup** — Old clips are automatically removed based on configurable retention policies (default: 30 days, 80% threshold)
+
+### Architecture
+
+| | Pi #1 — `blink-drive` | Pi #2 — `blink-processor` |
+|---|---|---|
+| **Role** | Emulates USB flash drive to Blink Sync Module | Processes video clips and runs face recognition |
+| **CLI** | `blink-drive start\|stop\|status\|watch` | `blink-processor start\|status\|process-video` |
+| **Key Tech** | USB gadget (`g_mass_storage`), rsync over SSH | OpenCV, face_recognition (dlib) |
 
 ### Key Technologies
 
 - **Python 3.8+** with async architecture
-- **face_recognition** + **OpenCV** for video/image processing
-- **TensorFlow Lite** for edge ML inference
+- **face_recognition** + **OpenCV** for video and image processing
 - **structlog** for structured JSON logging
 - **YAML configuration** with environment variable overrides
 - **systemd services** for automatic startup on each Pi
 
-## 🚀 Features
+## 📖 Setup
 
-- **Raspberry Pi Zero 2 W Integration**: Dual Pi setup for USB gadget mode and video processing
-- **Local Video Storage**: Virtual USB drive for Blink Sync Module storage
-- **Face Recognition**: Advanced face detection and recognition using machine learning
-- **Video Processing**: Automated video analysis, stitching, and management
-- **Intelligent Storage**: Smart cleanup and retention policies
-- **Real-time Notifications**: Alert system for unknown faces and events
-- **Notifications**: Alert system for unknown faces via email, Pushbullet, or webhooks
-
-## 🍓 Roles and CLIs
-
-- Pi #1 Drive CLI: `blink-drive`
-  - `blink-drive start|stop|status|watch`
-- Pi #2 Processor CLI: `blink-processor`
-  - `blink-processor start|status|process-video <file>`
-
-## 🚀 Quick Start
-
-```bash
-# On Pi #1 (Drive)
-pip install .[drive]
-sudo cp scripts/drive/systemd/blink-drive.service /etc/systemd/system/
-sudo systemctl enable --now blink-drive
-
-# On Pi #2 (Processor)
-pip install .[processor]
-sudo cp scripts/processor/systemd/blink-processor.service /etc/systemd/system/
-sudo systemctl enable --now blink-processor
-
-# Ad-hoc processing on Pi #2
-blink-processor process-video /path/to/video.mp4 --output-dir /var/blink_storage/results
-```
+- **[Hardware & OS Setup](./docs/setup/pi-zero-setup.md)** — Flash SD cards, configure hostnames, first boot
+- **[Application Setup](./docs/setup/blink-app-setup.md)** — Full install guide for both Pis
 
 ## 📝 Contributing
 
-Please read our contributing guidelines before submitting pull requests. Each documentation file contains relevant images and diagrams to help you understand the system better.
+Please read our contributing guidelines before submitting pull requests.
 
 ## 📄 License
 
