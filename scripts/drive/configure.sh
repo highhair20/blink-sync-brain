@@ -23,7 +23,7 @@ sed -i "s|processor_host:.*|processor_host: \"${PROCESSOR_IP}\"|" "$CONFIG"
 echo "Set processor_host to ${PROCESSOR_IP} in ${CONFIG}"
 
 # Generate SSH key if not already present
-mkdir -p /home/pi/.ssh && chmod 700 /home/pi/.ssh
+sudo mkdir -p /home/pi/.ssh && sudo chown pi:pi /home/pi/.ssh && sudo chmod 700 /home/pi/.ssh
 if [[ ! -f /home/pi/.ssh/id_rsa ]]; then
     ssh-keygen -t rsa -f /home/pi/.ssh/id_rsa -N ""
     echo "SSH key generated"
