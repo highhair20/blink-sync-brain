@@ -6,13 +6,10 @@ This guide covers installing and configuring the Blink Lens software on both Ras
 
 - Raspberry Pi OS Lite 64-bit on both Pis (see [Pi Zero Setup Guide](pi-zero-setup.md))
 - SSH enabled and network configured
-- Python 3.8+ on both Pis
 
-## Pi #1: Drive (USB Gadget) Setup
+---
 
-Pi #1 emulates a USB flash drive for the Blink Sync Module. It runs in "Storage Mode" permanently — Blink always has its drive. A background file watcher detects new clips and pushes them to Pi #2 automatically over SSH.
-
-### Step 1: Clone, Enable USB Gadget, and Reboot
+## Step 1: Pi #1 — Clone, Enable USB Gadget, and Reboot
 
 ```bash
 ssh pi@blink-drive.local
@@ -26,72 +23,9 @@ sudo /opt/blink-lens/scripts/drive/enable-usb-gadget.sh
 sudo reboot
 ```
 
-> The enable script adds `dtoverlay=dwc2,dr_mode=peripheral` to `/boot/firmware/config.txt` and `dwc2` to `/etc/modules`. A reboot is required for these to take effect.
+## Step 2: Pi #2 — Clone and Install
 
-### Step 2: Configure
-
-After reboot, SSH back in. Set Pi #2's IP in the config and set up SSH key access:
-
-> Pi #2 must be booted and reachable on the network before proceeding with SSH key setup.
-
-```bash
-ssh pi@blink-drive.local
-
-# Set Pi #2's IP address
-nano /opt/blink-lens/configs/drive.yaml
-```
-
-Set `processor_host`:
-```yaml
-watcher:
-  processor_host: "192.168.1.201"   # Pi #2 IP or hostname
-```
-
-Then set up passwordless SSH from Pi #1 to Pi #2:
-```bash
-mkdir -p /home/pi/.ssh && chmod 700 /home/pi/.ssh
-ssh-keygen -t rsa -f /home/pi/.ssh/id_rsa -N ""
-ssh-copy-id -i /home/pi/.ssh/id_rsa.pub pi@192.168.1.201
-ssh pi@192.168.1.201 "echo SSH OK"
-```
-
-### Step 3: Install and Reboot
-
-Virtual drive image creation (32 GB) takes several minutes — run in `screen` so it survives a disconnection:
-
-```bash
-screen -S install
-sudo /opt/blink-lens/scripts/drive/install.sh
-sudo reboot
-```
-
-### Step 4: Connect to Blink Sync Module
-
-1. Connect the Pi's **USB** (data) port to the Blink Sync Module using a USB-A to Micro USB cable
-2. Power the Pi via the **PWR** port — do not rely on power from the Sync Module
-3. In the Blink app, go to **Sync Module > Local Storage** — it should show a USB drive detected
-4. If prompted to format the drive, allow it
-5. Enable local storage if not already enabled
-
-### Manual Drive Access
-
-The scripts in `scripts/drive/` are available for diagnostics. Under normal operation the watcher handles transfers automatically.
-
-```bash
-# Check status
-blink-drive status
-
-# Manual clip transfer (stop watcher first — diagnostics only)
-sudo systemctl stop blink-watcher
-sudo /opt/blink-lens/scripts/drive/start_server_mode.sh
-rsync -av /mnt/blink_shadow/ pi@192.168.1.201:/var/blink_storage/videos/
-sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
-sudo systemctl start blink-watcher
-```
-
-## Pi #2: Processor (Video & Face Recognition) Setup
-
-### Step 1: Clone the Repository
+While Pi #1 is rebooting, set up Pi #2. dlib/face-recognition compilation takes a long time — run in `screen` so it survives a disconnection:
 
 ```bash
 ssh pi@blink-processor.local
@@ -101,43 +35,60 @@ sudo apt install -y git screen
 sudo mkdir -p /opt/blink-lens
 sudo git clone https://github.com/highhair20/blink-lens.git /opt/blink-lens
 sudo chown -R pi:pi /opt/blink-lens
-```
-
-### Step 2: Install
-
-dlib/face-recognition compilation takes a long time — run in `screen` so it survives a disconnection:
-
-```bash
 screen -S install
 sudo /opt/blink-lens/scripts/processor/install.sh
 ```
 
-## System Integration & Networking
+## Step 3: Pi #1 — Configure
 
-### Configure Static IPs
+Once Pi #2 is reachable on the network, SSH back into Pi #1 and run:
 
 ```bash
-# On either Pi, configure static IP using NetworkManager
-sudo nmcli connection modify "Wi-Fi" ipv4.addresses "192.168.1.200/24"  # .200 for Drive, .201 for Processor
-sudo nmcli connection modify "Wi-Fi" ipv4.gateway "192.168.1.1"
-sudo nmcli connection modify "Wi-Fi" ipv4.dns "192.168.1.1,8.8.8.8"
-sudo nmcli connection modify "Wi-Fi" ipv4.method "manual"
-
-# Restart the connection
-sudo nmcli connection down "Wi-Fi"
-sudo nmcli connection up "Wi-Fi"
+ssh pi@blink-drive.local
+/opt/blink-lens/scripts/drive/configure.sh 192.168.1.201
 ```
 
-### Test Video Transfer
+You will be prompted for Pi #2's password once to copy the SSH key.
 
-Trigger a test by causing motion in front of a Blink camera. Watch the watcher log on Pi #1 to confirm the clip is detected and pushed:
+## Step 4: Pi #1 — Install and Reboot
+
+Virtual drive image creation (32 GB) takes several minutes — run in `screen` so it survives a disconnection:
 
 ```bash
-# On Pi #1 — watch for clip detection and push
+screen -S install
+sudo /opt/blink-lens/scripts/drive/install.sh
+sudo reboot
+```
+
+## Step 5: Configure Static IPs
+
+Run on each Pi. Your SSH session will drop when the connection restarts — reconnect using the static IP.
+
+```bash
+# Pi #1 (blink-drive)
+sudo /opt/blink-lens/scripts/configure-static-ip.sh 192.168.1.200
+
+# Pi #2 (blink-processor)
+sudo /opt/blink-lens/scripts/configure-static-ip.sh 192.168.1.201
+```
+
+## Step 6: Connect Pi #1 to Blink Sync Module
+
+1. Connect the Pi's **USB** (data) port to the Blink Sync Module using a USB-A to Micro USB cable
+2. Power the Pi via the **PWR** port — do not rely on power from the Sync Module
+3. In the Blink app, go to **Sync Module > Local Storage** — it should show a USB drive detected
+4. If prompted to format the drive, allow it
+5. Enable local storage if not already enabled
+
+## Step 7: Test Video Transfer
+
+Trigger motion in front of a Blink camera, then watch the watcher log on Pi #1:
+
+```bash
 sudo journalctl -u blink-watcher -f
 ```
 
-You should see log lines like:
+You should see:
 ```
 Drive image changed, waiting to settle
 Scanning virtual drive for new clips
@@ -146,455 +97,96 @@ Pushing clip to processor file=clip.mp4
 Clip pushed successfully file=clip.mp4
 ```
 
-Then confirm the clip arrived on Pi #2:
+Confirm the clip arrived on Pi #2:
 
 ```bash
-# On Pi #2
 ls -lt /var/blink_storage/videos/
 ```
+
+---
 
 ## Troubleshooting
 
 ### USB Gadget Issues
 
-As a first step, run the built-in diagnostic script. It checks modules, the virtual drive file, USB gadget configfs, kernel messages, and the systemd service:
+Run the diagnostic script first:
 
 ```bash
 sudo /opt/blink-lens/scripts/drive/diagnose_usb_gadget.sh
 ```
 
-1. **Gadget Not Recognized — Complete Diagnostic**
-   ```bash
-   # Check if modules are loaded
-   lsmod | grep dwc2
-   lsmod | grep g_mass_storage
+**Gadget not recognized:**
+```bash
+lsmod | grep dwc2
+lsmod | grep g_mass_storage
+dmesg | grep -i usb | tail -20
+sudo modprobe -r g_mass_storage 2>/dev/null || true
+sudo modprobe g_mass_storage file=/var/blink_storage/virtual_drive.img removable=1 stall=0
+```
 
-   # Check if USB gadget is active
-   ls /sys/kernel/config/usb_gadget/ 2>/dev/null || echo "No USB gadgets found"
+**Virtual drive not created:**
+```bash
+sudo /opt/blink-lens/scripts/drive/create-virtual-storage.sh
+```
 
-   # Check kernel messages for USB errors
-   dmesg | grep -i usb | tail -20
-   dmesg | grep -i gadget | tail -20
-
-   # Check if virtual drive exists and is accessible
-   ls -la /var/blink_storage/virtual_drive.img
-
-   # Test manual module loading
-   sudo modprobe -r g_mass_storage 2>/dev/null || true
-   sudo modprobe g_mass_storage file=/var/blink_storage/virtual_drive.img removable=1 stall=0
-
-   # Check if it appears in lsusb
-   lsusb
-   ```
-
-2. **USB Gadget Not Appearing on Host Computer**
-   ```bash
-   # Verify the virtual drive file is properly formatted
-   sudo file /var/blink_storage/virtual_drive.img
-
-   # Check file permissions
-   ls -la /var/blink_storage/virtual_drive.img
-
-   # Ensure the file is not mounted elsewhere
-   mount | grep virtual_drive
-
-   # Test with a smaller test file
-   sudo dd if=/dev/zero of=/tmp/test.img bs=1M count=100
-   sudo mkfs.vfat /tmp/test.img
-   sudo modprobe -r g_mass_storage
-   sudo modprobe g_mass_storage file=/tmp/test.img removable=1 stall=0
-   ```
-
-3. **Module Loading Issues**
-   ```bash
-   # Check if modules are available
-   modinfo dwc2
-   modinfo g_mass_storage
-
-   # Check kernel version compatibility
-   uname -r
-
-   # Reload modules if needed
-   sudo modprobe -r g_mass_storage dwc2
-   sudo modprobe dwc2
-   sudo modprobe g_mass_storage
-   ```
-
-4. **Systemd Service Issues**
-   ```bash
-   # Check service status
-   sudo systemctl status blink-drive
-
-   # Check service logs
-   sudo journalctl -u blink-drive -f
-
-   # Check if the command exists
-   which blink-drive
-
-   # Test the command manually
-   sudo /opt/blink-lens/scripts/drive/start_storage_mode.sh
-
-   # Reload systemd and restart service
-   sudo systemctl daemon-reload
-   sudo systemctl restart blink-drive
-   ```
-
-5. **Virtual Drive Not Created**
-   ```bash
-   ls -la /var/blink_storage/
-
-   # Create manually if needed (preferred — handles partitioning correctly)
-   sudo /opt/blink-lens/scripts/drive/create-virtual-storage.sh
-   ```
+**Systemd service issues:**
+```bash
+sudo systemctl status blink-drive
+sudo journalctl -u blink-drive -f
+sudo systemctl daemon-reload && sudo systemctl restart blink-drive
+```
 
 ### File Watcher Issues
 
-1. **Watcher service not starting**
-   ```bash
-   sudo systemctl status blink-watcher
-   sudo journalctl -u blink-watcher -b
-   # blink-watcher requires blink-drive — confirm blink-drive is active first
-   sudo systemctl status blink-drive
-   ```
-
-2. **Clips not being pushed to Pi #2**
-   ```bash
-   # Check watcher logs for errors
-   sudo journalctl -u blink-watcher -f
-
-   # Test SSH access from Pi #1 to Pi #2 manually
-   ssh pi@192.168.1.201 "echo SSH OK"
-
-   # Test rsync manually (replace clip.mp4 with an actual file from the shadow mount)
-   rsync -az -e "ssh -i /home/pi/.ssh/id_rsa" \
-     /mnt/blink_shadow/clip.mp4 \
-     pi@192.168.1.201:/var/blink_storage/videos/
-   ```
-
-3. **Shadow mount failing**
-   ```bash
-   # Check if loop device can be created
-   sudo losetup -fP /var/blink_storage/virtual_drive.img
-   sudo losetup -j /var/blink_storage/virtual_drive.img
-
-   # Check mount point
-   ls /mnt/blink_shadow
-   mount | grep blink_shadow
-
-   # Clean up stale loop devices if needed
-   sudo losetup -D   # detach all unused loop devices
-   ```
-
-4. **Watcher state file issue (clips being re-pushed after restart)**
-   ```bash
-   cat /var/blink_storage/watcher_state.json
-   # If corrupt, remove it — the watcher will rebuild state on next scan
-   sudo rm /var/blink_storage/watcher_state.json
-   ```
-
-### Video Processing Issues
-
-1. **OpenCV Installation Problems**
-   ```bash
-   # Install OpenCV from source if pip fails
-   sudo apt install -y python3-opencv
-   ```
-
-2. **Face Recognition Issues**
-   ```bash
-   # Check dlib installation
-   python3 -c "import dlib; print('dlib OK')"
-
-   # Reinstall if needed
-   sudo pip3 uninstall dlib face_recognition
-   sudo pip3 install dlib face_recognition
-   ```
-
-3. **Performance Issues**
-   ```bash
-   # Monitor system resources
-   htop
-
-   # Check temperature
-   vcgencmd measure_temp
-
-   # Reduce processing load — increase frame_skip in config.yaml
-   ```
-
-### Network Issues
-
-1. **Pi Not Accessible**
-   ```bash
-   # Check network configuration using NetworkManager
-   nmcli device status
-   nmcli connection show
-
-   # Check IP address
-   ip addr show wlan0
-
-   # Test connectivity
-   ping 192.168.1.1
-   ping 8.8.8.8
-   ```
-
-2. **NetworkManager Configuration Issues**
-   ```bash
-   # Check NetworkManager service status
-   sudo systemctl status NetworkManager
-
-   # Restart NetworkManager
-   sudo systemctl restart NetworkManager
-
-   # List available WiFi networks
-   nmcli device wifi list
-
-   # Connect to a specific network
-   sudo nmcli device wifi connect "SSID_NAME" password "PASSWORD"
-
-   # Check connection details
-   nmcli connection show "Wi-Fi"
-   ```
-
-3. **SSH Connection Issues**
-   ```bash
-   # Check SSH service
-   sudo systemctl status ssh
-
-   # Restart SSH if needed
-   sudo systemctl restart ssh
-
-   # Check NetworkManager connection
-   nmcli connection show "Wi-Fi"
-   nmcli device wifi list
-   ```
-
-## Monitoring & Maintenance
-
-### System Monitoring Script
-
+**Watcher not starting** (requires `blink-drive` to be active first):
 ```bash
-#!/bin/bash
-
-echo "=== Blink Lens System Status ==="
-echo "Date: $(date)"
-echo
-
-echo "Pi #1 (USB Gadget):"
-ssh pi@192.168.1.200 "blink-drive status"
-echo
-
-echo "Pi #2 (Video Processing):"
-blink-processor status
-echo
-
-echo "Storage Usage:"
-df -h /var/blink_storage
-echo
-
-echo "Temperature:"
-vcgencmd measure_temp
-```
-
-### Setup Cron Job for Monitoring
-
-```bash
-crontab -e
-```
-
-Add this line:
-```cron
-*/30 * * * * /home/pi/monitor_system.sh >> /var/log/blink_monitor.log 2>&1
-```
-
-### Weekly Maintenance
-
-```bash
-# Update system
-sudo apt update && sudo apt upgrade
-
-# Clean old logs
-sudo journalctl --vacuum-time=7d
-
-# Check disk usage
-df -h
-```
-
-### Monthly Maintenance
-
-```bash
-# Backup face database
-cp /var/blink_storage/face_database.pkl /backup/
-
-# Check storage status
-blink-drive status
-blink-processor status
-```
-
-## Security
-
-1. **Change Default Passwords**
-   ```bash
-   passwd
-
-   # Create new user (optional)
-   sudo adduser blinkuser
-   sudo usermod -aG sudo blinkuser
-   ```
-
-2. **Firewall Configuration**
-   ```bash
-   sudo apt install -y ufw
-   sudo ufw allow ssh
-   sudo ufw allow 8080  # If using web interface
-   sudo ufw enable
-   ```
-
-3. **Regular Updates**
-   ```bash
-   sudo apt install -y unattended-upgrades
-   sudo dpkg-reconfigure unattended-upgrades
-   ```
-
-4. **SSH Hardening**
-   ```bash
-   # After setting up SSH keys, disable password authentication
-   sudo nano /etc/ssh/sshd_config
-   # Set: PasswordAuthentication no
-   sudo systemctl restart ssh
-   ```
-
-## Appendix: Quick Reference
-
-### System Information
-
-```bash
-cat /proc/device-tree/model     # Pi model and version
-vcgencmd measure_temp            # CPU temperature
-free -h                          # Memory usage
-df -h                            # Disk usage
-ip addr show                     # Network interfaces
-sudo systemctl list-units --type=service --state=running  # Running services
-uptime                           # System load
-```
-
-### Package Management
-
-```bash
-sudo apt update                  # Update package list
-sudo apt upgrade                 # Upgrade installed packages
-sudo apt install package_name    # Install a package
-sudo apt remove package_name     # Remove a package
-sudo apt autoremove && sudo apt autoclean  # Clean cache
-```
-
-### Application Commands
-
-```bash
-# Pi #1 (Drive)
-blink-drive start                                             # Start Storage Mode (load g_mass_storage)
-blink-drive stop                                              # Stop Storage Mode
-blink-drive status                                            # Show gadget status
-blink-drive watch --config /opt/blink-lens/configs/drive.yaml  # Start file watcher (push clips to Pi #2)
-
-# Pi #2 (Processor)
-blink-processor start
-blink-processor status
-blink-processor process-video /path/to/video.mp4 --output-dir /var/blink_storage/results
-```
-
-### Service Management
-
-```bash
-# Drive service (Storage Mode — runs at boot)
-sudo systemctl start blink-drive
-sudo systemctl enable blink-drive
 sudo systemctl status blink-drive
-sudo journalctl -u blink-drive -f
-
-# Watcher service (pushes clips to Pi #2 — depends on blink-drive)
-sudo systemctl start blink-watcher
-sudo systemctl enable blink-watcher
 sudo systemctl status blink-watcher
+sudo journalctl -u blink-watcher -b
+```
+
+**Clips not being pushed to Pi #2:**
+```bash
+ssh pi@192.168.1.201 "echo SSH OK"
 sudo journalctl -u blink-watcher -f
 ```
 
-### Performance Tips
-
+**Shadow mount failing:**
 ```bash
-# Reduce GPU memory (Drive Pi)
-# In /boot/firmware/config.txt, set: gpu_mem=64
-
-# Increase GPU memory (Processor Pi, for video processing)
-# In /boot/firmware/config.txt, set: gpu_mem=128
-
-# Disable unnecessary services
-sudo systemctl disable bluetooth
-sudo systemctl disable avahi-daemon
-
-# Use swap file for memory
-sudo fallocate -l 1G /swapfile
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
-
-# Increase process priority for video processing
-sudo nice -n -10 blink-processor process-video video.mp4
-
-# Use tmpfs for temporary files
-sudo mount -t tmpfs -o size=512M tmpfs /tmp
+sudo losetup -j /var/blink_storage/virtual_drive.img
+mount | grep blink_shadow
+sudo losetup -D
 ```
 
-### Log Monitoring
-
+**Clips re-pushed after restart (corrupt state file):**
 ```bash
-sudo journalctl -f                       # All system logs
-sudo journalctl -u blink-drive -f        # Drive service logs
-sudo journalctl -u blink-processor -f    # Processor service logs
-sudo journalctl -b                       # Current boot logs
-sudo journalctl --vacuum-time=7d         # Clean old logs
+sudo rm /var/blink_storage/watcher_state.json
 ```
 
-### Storage Monitoring
+### Video Processing Issues
 
+**OpenCV:**
 ```bash
-df -h                                    # Overall disk usage
-du -sh /var/blink_storage/*              # Blink storage breakdown
-df -i                                    # Inode usage
+sudo apt install -y python3-opencv
 ```
 
-### Useful Scripts
-
-**System Status:**
+**dlib / face_recognition:**
 ```bash
-#!/bin/bash
-echo "=== Pi Zero 2 W Status ==="
-echo "Date: $(date)"
-echo "Uptime: $(uptime)"
-echo "Temperature: $(vcgencmd measure_temp)"
-echo "Memory: $(free -h | grep Mem)"
-echo "Disk: $(df -h / | tail -1)"
-echo "Network: $(hostname -I)"
+python3 -c "import dlib; print('dlib OK')"
 ```
 
-**Backup:**
+### Network Issues
+
+**Pi not accessible:**
 ```bash
-#!/bin/bash
-BACKUP_DIR="/backup/$(date +%Y%m%d)"
-mkdir -p $BACKUP_DIR
-cp /opt/blink-lens/configs/drive.yaml $BACKUP_DIR/
-cp /var/blink_storage/face_database.pkl $BACKUP_DIR/
-cp /var/log/blink_monitor.log $BACKUP_DIR/
-echo "Backup completed: $BACKUP_DIR"
+nmcli device status
+ip addr show wlan0
 ```
 
-### Important Configuration Files
-
-```
-/boot/firmware/config.txt          # Boot configuration
-/etc/modules                       # System modules
-/etc/ssh/sshd_config               # SSH configuration
-/opt/blink-lens/configs/drive.yaml      # Drive Pi config
-/opt/blink-lens/configs/processor.yaml  # Processor Pi config
+**SSH not working:**
+```bash
+sudo systemctl status ssh
+sudo systemctl restart ssh
 ```
 
 ---
