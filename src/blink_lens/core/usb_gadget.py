@@ -41,15 +41,11 @@ class USBGadgetManager:
         self.settings = settings
         self.logger = structlog.get_logger()
         self.virtual_drive_path: Path = settings.storage.virtual_drive_path
-        self.is_configured = False
-        self.is_active = False
         self._scripts_dir = _find_scripts_dir()
 
     async def start_usb_gadget(self) -> bool:
         """
         Start Storage Mode: load g_mass_storage so Blink can write to the virtual drive.
-
-        Creates the virtual drive image if it does not already exist.
 
         Returns:
             bool: True if started successfully, False otherwise
@@ -58,18 +54,19 @@ class USBGadgetManager:
             self.logger.info("Starting USB gadget (Storage Mode)")
 
             if not self.virtual_drive_path.exists():
-                self.logger.info("Virtual drive image not found, creating it")
-                if not await self._create_virtual_drive():
-                    return False
+                self.logger.error(
+                    "Virtual drive image not found — run the installer first",
+                    path=str(self.virtual_drive_path),
+                    hint="sudo /opt/blink-lens/scripts/drive/install.sh",
+                )
+                return False
 
             result = await self._run_command(
-                ["sudo", str(self._scripts_dir / "start_storage_mode.sh")]
+                [str(self._scripts_dir / "start_storage_mode.sh")]
             )
             if result.returncode != 0:
                 self.logger.error("Failed to start Storage Mode", error=result.stderr)
                 return False
-            self.is_configured = True
-            self.is_active = True
             self.logger.info("Storage Mode active")
             return True
 
@@ -86,11 +83,10 @@ class USBGadgetManager:
         """
         try:
             self.logger.info("Stopping USB gadget (unloading g_mass_storage)")
-            result = await self._run_command(["sudo", "modprobe", "-r", "g_mass_storage"])
+            result = await self._run_command(["modprobe", "-r", "g_mass_storage"])
             if result.returncode != 0:
                 self.logger.error("Failed to unload g_mass_storage", error=result.stderr)
                 return False
-            self.is_active = False
             self.logger.info("USB gadget stopped")
             return True
 
@@ -115,18 +111,6 @@ class USBGadgetManager:
             "virtual_drive_path": str(self.virtual_drive_path),
             "drive_size": drive_size,
         }
-
-    async def _create_virtual_drive(self) -> bool:
-        """Create the virtual drive image using create-virtual-storage.sh."""
-        self.logger.info("Creating virtual drive", path=str(self.virtual_drive_path))
-        result = await self._run_command(
-            ["sudo", str(self._scripts_dir / "create-virtual-storage.sh")]
-        )
-        if result.returncode != 0:
-            self.logger.error("Failed to create virtual drive", error=result.stderr)
-            return False
-        self.logger.info("Virtual drive created successfully")
-        return True
 
     async def _is_connected(self) -> bool:
         """Check if g_mass_storage is loaded (Storage Mode active)."""

@@ -1,7 +1,8 @@
 [Unit]
 Description=Blink File Watcher — push new clips to Processor Pi
-After=blink-drive.service network.target
+After=blink-drive.service network-online.target
 Requires=blink-drive.service
+Wants=network-online.target
 
 [Service]
 Type=simple
