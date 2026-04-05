@@ -7,12 +7,10 @@ to act as a virtual USB storage device for the Blink Sync Module.
 
 import asyncio
 import subprocess
-import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 
 import structlog
-import psutil
 
 from blink_lens.config.settings import Settings
 
@@ -102,39 +100,8 @@ class USBGadgetManager:
             "active": self.is_active,
             "virtual_drive_path": str(self.virtual_drive_path),
             "drive_size": await self._get_drive_size(),
-            "free_space": await self._get_free_space(),
             "connected": await self._is_connected(),
         }
-
-    async def monitor_storage(self) -> None:
-        """
-        Monitor storage usage and manage space.
-
-        This method runs continuously to monitor the virtual drive
-        and manage storage space by removing old files when needed.
-        """
-        self.logger.info("Starting storage monitoring")
-
-        while self.is_active:
-            try:
-                free_space = await self._get_free_space()
-                total_space = await self._get_drive_size()
-                usage_percent = ((total_space - free_space) / total_space) * 100
-
-                self.logger.debug(
-                    "Storage status",
-                    free_space_gb=free_space / (1024**3),
-                    usage_percent=usage_percent,
-                )
-
-                if usage_percent > self.settings.storage.cleanup_threshold:
-                    await self._cleanup_old_files()
-
-                await asyncio.sleep(self.settings.storage.monitor_interval)
-
-            except Exception as e:
-                self.logger.error("Error in storage monitoring", error=str(e))
-                await asyncio.sleep(60)
 
     def _is_raspberry_pi(self) -> bool:
         """Check if running on Raspberry Pi."""
@@ -168,108 +135,6 @@ class USBGadgetManager:
         except Exception as e:
             self.logger.error("Failed to get drive size", error=str(e))
             return 0
-
-    async def _get_free_space(self) -> int:
-        """Get free space inside the virtual drive's FAT32 filesystem via a read-only shadow mount."""
-        mount_point = self.settings.watcher.shadow_mount_point
-        mount_point.mkdir(parents=True, exist_ok=True)
-
-        result = await self._run_command(["sudo", "losetup", "-fP", str(self.virtual_drive_path)])
-        if result.returncode != 0:
-            self.logger.error("Failed to create loop device for space check", error=result.stderr)
-            return 0
-
-        result = await self._run_command(["sudo", "losetup", "-j", str(self.virtual_drive_path)])
-        if result.returncode != 0 or not result.stdout.strip():
-            return 0
-
-        loop_dev = result.stdout.strip().splitlines()[0].split(":")[0]
-        partition = f"{loop_dev}p1"
-
-        for _ in range(10):
-            if Path(partition).exists():
-                break
-            await self._run_command(["sudo", "partprobe", loop_dev])
-            await asyncio.sleep(0.5)
-
-        result = await self._run_command(
-            ["sudo", "mount", "-t", "vfat", "-o", "ro", partition, str(mount_point)]
-        )
-        if result.returncode != 0:
-            self.logger.error("Failed to mount drive for space check", error=result.stderr)
-            await self._run_command(["sudo", "losetup", "-d", loop_dev])
-            return 0
-
-        try:
-            return psutil.disk_usage(str(mount_point)).free
-        except Exception as e:
-            self.logger.error("Failed to read free space", error=str(e))
-            return 0
-        finally:
-            await self._run_command(["sudo", "umount", str(mount_point)])
-            await self._run_command(["sudo", "losetup", "-d", loop_dev])
-
-    async def _cleanup_old_files(self) -> None:
-        """Stop Storage Mode, delete old files from the virtual drive, then restart."""
-        self.logger.info("Cleaning up old files from virtual drive")
-        mount_point = self.settings.watcher.shadow_mount_point
-        mount_point.mkdir(parents=True, exist_ok=True)
-
-        # Unload g_mass_storage so we can mount the image writably
-        result = await self._run_command(["sudo", "modprobe", "-r", "g_mass_storage"])
-        if result.returncode != 0:
-            self.logger.error("Failed to unload g_mass_storage for cleanup", error=result.stderr)
-            return
-
-        try:
-            result = await self._run_command(["sudo", "losetup", "-fP", str(self.virtual_drive_path)])
-            if result.returncode != 0:
-                self.logger.error("Failed to create loop device for cleanup", error=result.stderr)
-                return
-
-            result = await self._run_command(["sudo", "losetup", "-j", str(self.virtual_drive_path)])
-            if result.returncode != 0 or not result.stdout.strip():
-                self.logger.error("Could not find loop device for cleanup")
-                return
-
-            loop_dev = result.stdout.strip().splitlines()[0].split(":")[0]
-            partition = f"{loop_dev}p1"
-
-            for _ in range(10):
-                if Path(partition).exists():
-                    break
-                await self._run_command(["sudo", "partprobe", loop_dev])
-                await asyncio.sleep(0.5)
-
-            result = await self._run_command(
-                ["sudo", "mount", "-t", "vfat", partition, str(mount_point)]
-            )
-            if result.returncode != 0:
-                self.logger.error("Failed to mount drive for cleanup", error=result.stderr)
-                await self._run_command(["sudo", "losetup", "-d", loop_dev])
-                return
-
-            try:
-                cutoff = time.time() - self.settings.storage.retention_days * 86400
-                removed = 0
-                for file_path in mount_point.rglob("*"):
-                    if file_path.is_file() and file_path.stat().st_mtime < cutoff:
-                        file_path.unlink()
-                        removed += 1
-                        self.logger.debug("Removed old file", file=str(file_path))
-                self.logger.info("Cleanup completed", files_removed=removed)
-            finally:
-                await self._run_command(["sudo", "umount", str(mount_point)])
-                await self._run_command(["sudo", "losetup", "-d", loop_dev])
-
-        finally:
-            # Always restart Storage Mode regardless of cleanup outcome
-            reload = await self._run_command(
-                ["sudo", str(self._scripts_dir / "start_storage_mode.sh")]
-            )
-            if reload.returncode != 0:
-                self.logger.error("Failed to restart Storage Mode after cleanup", error=reload.stderr)
-                self.is_active = False
 
     async def _run_command(self, cmd: list) -> subprocess.CompletedProcess:
         """Run a command asynchronously and return a CompletedProcess."""

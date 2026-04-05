@@ -54,9 +54,20 @@ class NotificationSettings:
     notification_types: list = field(
         default_factory=lambda: ["unknown_face", "motion_detected", "system_alert"]
     )
+    # Email (SMTP)
     email_enabled: bool = False
+    smtp_host: str = "localhost"
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    email_from: Optional[str] = None
+    email_to: Optional[str] = None
+    # Pushbullet
     pushbullet_enabled: bool = False
+    pushbullet_api_key: Optional[str] = None
+    # Webhook
     webhook_enabled: bool = False
+    webhook_url: Optional[str] = None
 
 
 @dataclass
@@ -170,6 +181,24 @@ class Settings:
 
         if os.getenv("SSH_KEY_PATH"):
             self.watcher.ssh_key_path = Path(os.getenv("SSH_KEY_PATH"))
+
+        # Notification settings
+        if os.getenv("NOTIFICATION_SMTP_HOST"):
+            self.notifications.smtp_host = os.getenv("NOTIFICATION_SMTP_HOST")
+        if os.getenv("NOTIFICATION_SMTP_PORT"):
+            self.notifications.smtp_port = int(os.getenv("NOTIFICATION_SMTP_PORT"))
+        if os.getenv("NOTIFICATION_SMTP_USER"):
+            self.notifications.smtp_user = os.getenv("NOTIFICATION_SMTP_USER")
+        if os.getenv("NOTIFICATION_SMTP_PASSWORD"):
+            self.notifications.smtp_password = os.getenv("NOTIFICATION_SMTP_PASSWORD")
+        if os.getenv("NOTIFICATION_EMAIL_FROM"):
+            self.notifications.email_from = os.getenv("NOTIFICATION_EMAIL_FROM")
+        if os.getenv("NOTIFICATION_EMAIL_TO"):
+            self.notifications.email_to = os.getenv("NOTIFICATION_EMAIL_TO")
+        if os.getenv("NOTIFICATION_PUSHBULLET_API_KEY"):
+            self.notifications.pushbullet_api_key = os.getenv("NOTIFICATION_PUSHBULLET_API_KEY")
+        if os.getenv("NOTIFICATION_WEBHOOK_URL"):
+            self.notifications.webhook_url = os.getenv("NOTIFICATION_WEBHOOK_URL")
     
     @classmethod
     def from_file(cls, config_path: Path) -> "Settings":
@@ -255,7 +284,7 @@ class Settings:
                 self.watcher.processor_user = watcher_data["processor_user"]
             if "processor_video_path" in watcher_data:
                 self.watcher.processor_video_path = Path(watcher_data["processor_video_path"])
-            if "ssh_key_path" in watcher_data:
+            if watcher_data.get("ssh_key_path"):
                 self.watcher.ssh_key_path = Path(watcher_data["ssh_key_path"])
             if "poll_interval" in watcher_data:
                 self.watcher.poll_interval = watcher_data["poll_interval"]
@@ -281,7 +310,7 @@ class Settings:
             logging_data = config_data["logging"]
             if "level" in logging_data:
                 self.logging.level = logging_data["level"]
-            if "file_path" in logging_data:
+            if logging_data.get("file_path"):
                 self.logging.file_path = Path(logging_data["file_path"])
     
     def to_dict(self) -> dict:

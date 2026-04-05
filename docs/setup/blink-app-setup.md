@@ -41,11 +41,16 @@ sudo /opt/blink-lens/scripts/processor/install.sh
 
 ## Step 3: Pi #1 — Configure
 
-Once Pi #2 is reachable on the network, SSH back into Pi #1 and run:
+Switch back to Pi #1. Once Pi #2 is reachable, find its IP address:
 
 ```bash
-ssh pi@blink-drive.local
-/opt/blink-lens/scripts/drive/configure.sh 192.168.1.201
+ping blink-processor.local
+```
+
+Run configure with Pi #2's IP:
+
+```bash
+/opt/blink-lens/scripts/drive/configure.sh <pi2-ip>
 ```
 
 You will be prompted for Pi #2's password once to copy the SSH key.

@@ -147,7 +147,7 @@ class FileWatcher:
             f"{watcher.processor_video_path}/"
         )
 
-        ssh_opts = "-o StrictHostKeyChecking=no -o BatchMode=yes"
+        ssh_opts = "-o StrictHostKeyChecking=accept-new -o BatchMode=yes"
         if watcher.ssh_key_path:
             ssh_opts += f" -i {watcher.ssh_key_path}"
 
@@ -159,15 +159,38 @@ class FileWatcher:
             destination,
         ]
 
-        self.logger.info("Pushing clip to processor", file=file_path.name)
-        result = await self._run_command(cmd)
+        max_retries = 3
+        backoff_seconds = 5
 
-        if result.returncode != 0:
-            self.logger.error("rsync failed", file=str(file_path), stderr=result.stderr)
-            return False
+        for attempt in range(1, max_retries + 1):
+            self.logger.info(
+                "Pushing clip to processor",
+                file=file_path.name,
+                attempt=attempt,
+                max_retries=max_retries,
+            )
+            result = await self._run_command(cmd)
 
-        self.logger.info("Clip pushed successfully", file=file_path.name)
-        return True
+            if result.returncode == 0:
+                self.logger.info("Clip pushed successfully", file=file_path.name)
+                return True
+
+            self.logger.warning(
+                "rsync failed",
+                file=str(file_path),
+                attempt=attempt,
+                max_retries=max_retries,
+                stderr=result.stderr,
+            )
+            if attempt < max_retries:
+                await asyncio.sleep(backoff_seconds * attempt)
+
+        self.logger.error(
+            "rsync failed after all retries",
+            file=str(file_path),
+            stderr=result.stderr,
+        )
+        return False
 
     # -------------------------------------------------------------------------
     # Shadow mount management
