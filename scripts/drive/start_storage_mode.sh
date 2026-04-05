@@ -11,7 +11,7 @@ echo "Switching to Storage Mode for Blink..."
 # confuse the Blink Sync Module without producing a clear error)
 if [[ ! -f "${DRIVE_IMG}" ]]; then
     echo "ERROR: Virtual drive image not found: ${DRIVE_IMG}"
-    echo "  Run: sudo blink-drive start   (this creates the image automatically)"
+    echo "  Run: sudo /opt/blink-lens/scripts/drive/install.sh"
     exit 1
 fi
 IMAGE_SIZE=$(stat -c%s "${DRIVE_IMG}" 2>/dev/null || echo 0)

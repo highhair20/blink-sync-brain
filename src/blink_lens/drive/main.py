@@ -35,11 +35,12 @@ def _format_status(status: Dict[str, Any]) -> str:
     if status["drive_size"]:
         drive_str = f"{status['drive_size'] / (1024 ** 3):.1f} GB ({status['virtual_drive_path']})"
     else:
-        drive_str = f"not created yet — run: sudo blink-drive start ({status['virtual_drive_path']})"
+        drive_str = (
+            f"not found ({status['virtual_drive_path']}) — "
+            f"run: sudo /opt/blink-lens/scripts/drive/install.sh"
+        )
     return (
         f"Storage Mode:  {'ACTIVE' if status['active'] else 'INACTIVE'}\n"
-        f"USB Connected: {'YES' if status['connected'] else 'NO'}\n"
-        f"Configured:    {'YES' if status['configured'] else 'NO'}\n"
         f"Virtual Drive: {drive_str}"
     )
 
