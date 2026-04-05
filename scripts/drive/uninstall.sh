@@ -4,6 +4,12 @@ set -euo pipefail
 # Usage: sudo ./uninstall.sh [--purge]
 #   --purge  Also delete the virtual drive image and all data in /var/blink_storage
 
+if [[ $EUID -ne 0 ]]; then
+    echo "ERROR: This script must be run with sudo."
+    echo "  Run: sudo $0 $*"
+    exit 1
+fi
+
 PURGE=false
 for arg in "$@"; do
     [[ "$arg" == "--purge" ]] && PURGE=true
@@ -61,14 +67,33 @@ if grep -q "^dwc2" /etc/modules; then
 fi
 
 # ── Unmount shadow mount if active ───────────────────────────────────────────
-SHADOW="/mnt/blink_shadow"
+# Read paths from drive.yaml if possible; fall back to defaults.
+# Note: the venv is already removed at this point, so system python3 is used.
+CONFIG="/opt/blink-lens/configs/drive.yaml"
+SHADOW=$(python3 -c "
+import yaml
+try:
+    d = yaml.safe_load(open('${CONFIG}'))
+    print(d.get('watcher', {}).get('shadow_mount_point', '/mnt/blink_shadow'))
+except Exception:
+    print('/mnt/blink_shadow')
+" 2>/dev/null || echo "/mnt/blink_shadow")
+
+DRIVE=$(python3 -c "
+import yaml
+try:
+    d = yaml.safe_load(open('${CONFIG}'))
+    print(d.get('storage', {}).get('virtual_drive_path', '/var/blink_storage/virtual_drive.img'))
+except Exception:
+    print('/var/blink_storage/virtual_drive.img')
+" 2>/dev/null || echo "/var/blink_storage/virtual_drive.img")
+
 if mountpoint -q "${SHADOW}" 2>/dev/null; then
     echo "Unmounting shadow mount at ${SHADOW}..."
     umount "${SHADOW}"
 fi
 
 # Detach any loop devices backed by the virtual drive image
-DRIVE="/var/blink_storage/virtual_drive.img"
 if [[ -f "${DRIVE}" ]]; then
     losetup -j "${DRIVE}" 2>/dev/null | awk -F: '{print $1}' | while read -r loop; do
         echo "Detaching loop device ${loop}..."
@@ -85,6 +110,7 @@ if [[ "${PURGE}" == true ]]; then
     echo "Warning: /var/blink_storage retained. Remove manually if no longer needed."
 else
     echo "Data preserved. Run with --purge to also delete the virtual drive image."
+    rmdir --ignore-fail-on-non-empty "${SHADOW}" 2>/dev/null || true
 fi
 
 echo "Done. Reboot to fully unload USB gadget kernel modules: sudo reboot"

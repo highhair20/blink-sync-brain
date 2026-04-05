@@ -98,19 +98,18 @@ class TestGetStatus:
             with patch.object(manager, "_is_connected", new_callable=AsyncMock, return_value=True):
                 status = await manager.get_status()
 
-        assert "configured" in status
         assert "active" in status
         assert "virtual_drive_path" in status
         assert "drive_size" in status
-        assert "connected" in status
-        assert "free_space" not in status
+        assert "configured" not in status
+        assert "connected" not in status
 
-    async def test_connected_reflects_lsmod(self, manager: USBGadgetManager):
+    async def test_active_reflects_lsmod(self, manager: USBGadgetManager):
         with patch.object(manager, "_get_drive_size", new_callable=AsyncMock, return_value=0):
             with patch.object(manager, "_run_command", new_callable=AsyncMock,
                               return_value=_ok("g_mass_storage  12345  0\n")):
                 status = await manager.get_status()
-        assert status["connected"] is True
+        assert status["active"] is True
 
 
 class TestIsConnected:

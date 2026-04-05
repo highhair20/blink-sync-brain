@@ -168,7 +168,7 @@ class FileWatcher:
             self.logger.warning(
                 "Could not mount virtual drive — clips will be retried on next scan. "
                 "Most likely causes: (1) blink-drive is not running as root, "
-                "(2) the virtual drive image does not exist yet (run: blink-drive start), "
+                "(2) the virtual drive image does not exist yet (run: sudo /opt/blink-lens/scripts/drive/install.sh), "
                 "(3) losetup/mount are not available on this system."
             )
             return
@@ -219,7 +219,7 @@ class FileWatcher:
 
         ssh_opts = "-o StrictHostKeyChecking=accept-new -o BatchMode=yes"
         if watcher.ssh_key_path:
-            ssh_opts += f" -i {shlex.quote(str(watcher.ssh_key_path))}"
+            ssh_opts += f" -o IdentitiesOnly=yes -i {shlex.quote(str(watcher.ssh_key_path))}"
 
         cmd = [
             "rsync", "-az",

@@ -3,10 +3,13 @@ Description=Blink File Watcher — push new clips to Processor Pi
 After=blink-drive.service network-online.target
 Requires=blink-drive.service
 Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=3
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/env blink-drive watch --config /opt/blink-lens/configs/drive.yaml
+ExecStart=/usr/local/bin/blink-drive watch --config /opt/blink-lens/configs/drive.yaml
+ExecStopPost=/opt/blink-lens/scripts/drive/cleanup-shadow-mount.sh
 Restart=on-failure
 RestartSec=10
 User=root

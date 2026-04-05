@@ -5,15 +5,21 @@ set -euo pipefail
 # - Sets processor_host, processor_user, and ssh_key_path in drive.yaml
 # - Generates an SSH key and copies it to Pi #2
 #
-# Usage: ./configure.sh <processor-ip> [processor-user]
+# Usage: sudo ./configure.sh <processor-ip> [processor-user]
 #
-# Example: ./configure.sh 192.168.1.201
-#          ./configure.sh 192.168.1.201 jason   # if Pi #2's user is not 'pi'
+# Example: sudo ./configure.sh 192.168.1.201
+#          sudo ./configure.sh 192.168.1.201 jason   # if Pi #2's user is not 'pi'
+
+if [[ $EUID -ne 0 ]]; then
+    echo "ERROR: This script must be run with sudo."
+    echo "  Run: sudo $0 $*"
+    exit 1
+fi
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: $0 <processor-ip> [processor-user]"
-    echo "  e.g. $0 192.168.1.201"
-    echo "  e.g. $0 192.168.1.201 jason   # if Pi #2's username is not 'pi'"
+    echo "Usage: sudo $0 <processor-ip> [processor-user]"
+    echo "  e.g. sudo $0 192.168.1.201"
+    echo "  e.g. sudo $0 192.168.1.201 jason   # if Pi #2's username is not 'pi'"
     exit 1
 fi
 
@@ -118,4 +124,6 @@ fi
 
 echo ""
 echo "Done. Pi #1 is configured to push clips to ${PROCESSOR_USER}@${PROCESSOR_IP}."
-echo "Next step: sudo blink-drive start"
+echo "Next step:"
+echo "  If install.sh has not been run yet: sudo /opt/blink-lens/scripts/drive/install.sh"
+echo "  If install.sh is already done:      sudo reboot"

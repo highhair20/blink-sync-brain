@@ -5,7 +5,6 @@ This module manages the USB gadget mode functionality, allowing the Pi Zero 2 W
 to act as a virtual USB storage device for the Blink Sync Module.
 """
 
-import asyncio
 import subprocess
 from pathlib import Path
 from typing import Dict, Any
@@ -106,8 +105,6 @@ class USBGadgetManager:
             # Live: query lsmod rather than cached in-memory flags so that
             # `blink-drive status` reflects reality after a reboot.
             "active": connected,
-            "configured": connected,
-            "connected": connected,
             "virtual_drive_path": str(self.virtual_drive_path),
             "drive_size": drive_size,
         }

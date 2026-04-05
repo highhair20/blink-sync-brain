@@ -127,6 +127,14 @@ class TestSettingsFromFile:
         assert s.watcher.processor_host == "192.168.1.99"
         assert s.watcher.poll_interval == 15
 
+    def test_shadow_mount_point_from_yaml(self, tmp_path):
+        config = {"watcher": {"shadow_mount_point": "/media/shadow"}}
+        config_path = tmp_path / "test.yaml"
+        config_path.write_text(yaml.dump(config))
+
+        s = Settings.from_file(config_path)
+        assert s.watcher.shadow_mount_point == Path("/media/shadow")
+
     def test_load_missing_file_raises(self, tmp_path):
         with pytest.raises(FileNotFoundError):
             Settings.from_file(tmp_path / "nonexistent.yaml")
@@ -137,24 +145,6 @@ class TestSettingsValidation:
         s = Settings()
         errors = s.validate()
         assert errors == []
-
-    def test_invalid_frame_skip(self):
-        s = Settings()
-        s.processing.frame_skip = 0
-        errors = s.validate()
-        assert any("frame skip" in e.lower() for e in errors)
-
-    def test_invalid_confidence_threshold(self):
-        s = Settings()
-        s.face_recognition.confidence_threshold = 1.5
-        errors = s.validate()
-        assert any("confidence" in e.lower() for e in errors)
-
-    def test_invalid_port(self):
-        s = Settings()
-        s.network.port = 99999
-        errors = s.validate()
-        assert any("port" in e.lower() for e in errors)
 
     def test_invalid_log_level(self):
         s = Settings()

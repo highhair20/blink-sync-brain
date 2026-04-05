@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import asyncio
-import logging
+import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -30,7 +31,19 @@ def _configure_logging() -> None:
     )
 
 
-def _format_status(status: Dict[str, Any]) -> str:
+def _watcher_running() -> bool:
+    """Return True if the blink-watcher systemd service is active."""
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", "--quiet", "blink-watcher"],
+            capture_output=True,
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        return False  # systemctl not available (non-systemd environment)
+
+
+def _format_status(status: Dict[str, Any], watcher_running: bool, clips_pushed: int) -> str:
     """Format the gadget status dict as a human-readable string."""
     if status["drive_size"]:
         drive_str = f"{status['drive_size'] / (1024 ** 3):.1f} GB ({status['virtual_drive_path']})"
@@ -39,9 +52,14 @@ def _format_status(status: Dict[str, Any]) -> str:
             f"not found ({status['virtual_drive_path']}) — "
             f"run: sudo /opt/blink-lens/scripts/drive/install.sh"
         )
+    if watcher_running:
+        watcher_str = f"RUNNING ({clips_pushed} clip{'s' if clips_pushed != 1 else ''} pushed)"
+    else:
+        watcher_str = "STOPPED (start with: sudo systemctl start blink-watcher)"
     return (
         f"Storage Mode:  {'ACTIVE' if status['active'] else 'INACTIVE'}\n"
-        f"Virtual Drive: {drive_str}"
+        f"Virtual Drive: {drive_str}\n"
+        f"Watcher:       {watcher_str}"
     )
 
 
@@ -55,7 +73,8 @@ def parse_args() -> argparse.Namespace:
     stop = sub.add_parser("stop", help="Stop USB gadget service")
     stop.add_argument("--config", type=Path)
 
-    sub.add_parser("status", help="Show gadget status")
+    status = sub.add_parser("status", help="Show gadget status")
+    status.add_argument("--config", type=Path)
 
     watch = sub.add_parser("watch", help="Watch for new clips and push to processor Pi")
     watch.add_argument("--config", type=Path)
@@ -98,8 +117,17 @@ async def _run() -> int:
         ok = await manager.stop_usb_gadget()
         return 0 if ok else 1
     if args.command == "status":
-        status = await manager.get_status()
-        print(_format_status(status))
+        gadget_status = await manager.get_status()
+        watcher_running = _watcher_running()
+        clips_pushed = 0
+        state_file = settings.watcher.state_file
+        if state_file.exists():
+            try:
+                data = json.loads(state_file.read_text())
+                clips_pushed = len(data.get("pushed_files", []))
+            except Exception:
+                pass
+        print(_format_status(gadget_status, watcher_running, clips_pushed))
         return 0
     if args.command == "watch":
         from blink_lens.core.file_watcher import FileWatcher
@@ -118,7 +146,10 @@ async def _run() -> int:
 
 
 def main() -> None:
-    raise SystemExit(asyncio.run(_run()))
+    try:
+        raise SystemExit(asyncio.run(_run()))
+    except KeyboardInterrupt:
+        raise SystemExit(0)
 
 
 if __name__ == "__main__":

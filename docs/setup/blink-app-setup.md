@@ -50,7 +50,7 @@ ping blink-processor.local
 Run configure with Pi #2's IP:
 
 ```bash
-/opt/blink-lens/scripts/drive/configure.sh <pi2-ip>
+sudo /opt/blink-lens/scripts/drive/configure.sh <pi2-ip>
 ```
 
 You will be prompted for Pi #2's password once to copy the SSH key.

@@ -1,10 +1,13 @@
 [Unit]
 Description=Blink Drive (USB Gadget) Service
 After=multi-user.target
+StartLimitIntervalSec=120
+StartLimitBurst=3
 
 [Service]
 Type=oneshot
 ExecStart=/opt/blink-lens/scripts/drive/start_storage_mode.sh
+ExecStop=/sbin/modprobe -r g_mass_storage
 RemainAfterExit=yes
 User=root
 Group=root

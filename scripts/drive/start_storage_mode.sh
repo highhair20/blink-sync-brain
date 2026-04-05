@@ -1,8 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+if [[ $EUID -ne 0 ]]; then
+    echo "ERROR: This script must be run with sudo."
+    echo "  Run: sudo $0"
+    exit 1
+fi
+
 DRIVE_IMG="/var/blink_storage/virtual_drive.img"
-MOUNT_POINT="/mnt/blink_shadow"   # must match shadow_mount_point in drive.yaml
+CONFIG="/opt/blink-lens/configs/drive.yaml"
+
+# Read shadow_mount_point from drive.yaml so cleanup targets the configured path.
+MOUNT_POINT=$(python3 -c "
+import yaml, sys
+try:
+    d = yaml.safe_load(open('${CONFIG}'))
+    print(d.get('watcher', {}).get('shadow_mount_point', '/mnt/blink_shadow'))
+except Exception:
+    print('/mnt/blink_shadow')
+" 2>/dev/null || echo "/mnt/blink_shadow")
 
 echo "Switching to Storage Mode for Blink..."
 
@@ -17,7 +33,7 @@ fi
 IMAGE_SIZE=$(stat -c%s "${DRIVE_IMG}" 2>/dev/null || echo 0)
 if [[ "${IMAGE_SIZE}" -lt 1048576 ]]; then
     echo "ERROR: Virtual drive image is too small (${IMAGE_SIZE} bytes) — it may be corrupted."
-    echo "  Delete it and run: sudo blink-drive start"
+    echo "  Delete it and run: sudo /opt/blink-lens/scripts/drive/install.sh"
     exit 1
 fi
 

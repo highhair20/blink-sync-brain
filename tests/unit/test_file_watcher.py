@@ -219,6 +219,7 @@ class TestPushFile:
         src = inspect.getsource(watcher._push_file)
         assert "StrictHostKeyChecking=no" not in src
         assert "accept-new" in src
+        assert "IdentitiesOnly=yes" in src
 
 
 class TestStartValidation:

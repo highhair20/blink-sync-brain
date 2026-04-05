@@ -16,8 +16,6 @@ def _patch_manager(start=True, stop=True, status=None):
     if status is None:
         status = {
             "active": True,
-            "connected": True,
-            "configured": True,
             "drive_size": 32 * 1024 ** 3,
             "virtual_drive_path": "/var/blink_storage/virtual_drive.img",
         }
@@ -143,11 +141,31 @@ class TestStatusCommand:
     async def test_returns_0_and_prints(self, capsys):
         ctx, mock = _patch_manager()
         with ctx:
-            with patch("sys.argv", ["blink-drive", "status"]):
-                code = await _run()
+            with patch("blink_lens.drive.main._watcher_running", return_value=False):
+                with patch("sys.argv", ["blink-drive", "status"]):
+                    code = await _run()
         assert code == 0
         mock.get_status.assert_called_once()
-        assert capsys.readouterr().out.strip()
+        out = capsys.readouterr().out
+        assert out.strip()
+        assert "Storage Mode" in out
+        assert "Watcher" in out
+
+    async def test_status_shows_watcher_running(self, capsys):
+        ctx, _ = _patch_manager()
+        with ctx:
+            with patch("blink_lens.drive.main._watcher_running", return_value=True):
+                with patch("sys.argv", ["blink-drive", "status"]):
+                    await _run()
+        assert "RUNNING" in capsys.readouterr().out
+
+    async def test_status_shows_watcher_stopped(self, capsys):
+        ctx, _ = _patch_manager()
+        with ctx:
+            with patch("blink_lens.drive.main._watcher_running", return_value=False):
+                with patch("sys.argv", ["blink-drive", "status"]):
+                    await _run()
+        assert "STOPPED" in capsys.readouterr().out
 
 
 class TestWatchCommand:

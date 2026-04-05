@@ -1,6 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+if [[ $EUID -ne 0 ]]; then
+    echo "ERROR: This script must be run with sudo."
+    echo "  Run: sudo $0"
+    exit 1
+fi
+
 echo "Enabling USB gadget mode..."
 
 # Add dwc2 overlay with peripheral mode under [all] in config.txt.

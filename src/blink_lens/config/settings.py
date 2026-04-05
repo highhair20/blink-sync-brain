@@ -343,6 +343,8 @@ class Settings:
         # Watcher settings
         if "watcher" in config_data:
             watcher_data = config_data["watcher"]
+            if "shadow_mount_point" in watcher_data:
+                self.watcher.shadow_mount_point = Path(watcher_data["shadow_mount_point"])
             if "processor_host" in watcher_data:
                 self.watcher.processor_host = watcher_data["processor_host"]
             if "processor_user" in watcher_data:
@@ -465,28 +467,7 @@ class Settings:
             List of validation errors (empty if valid)
         """
         errors = []
-        
-        # Note: storage path is not checked here — if the virtual drive image does not exist,
-        # start_usb_gadget() will create it automatically.
-        
-        # Check processing settings
-        if self.processing.frame_skip < 1:
-            errors.append("Frame skip must be at least 1")
-        
-        if self.processing.max_concurrent_videos < 1:
-            errors.append("Max concurrent videos must be at least 1")
-        
-        # Check face recognition settings
-        if not (0.0 <= self.face_recognition.confidence_threshold <= 1.0):
-            errors.append("Face confidence threshold must be between 0.0 and 1.0")
-        
-        if not (0.0 <= self.face_recognition.tolerance <= 1.0):
-            errors.append("Face tolerance must be between 0.0 and 1.0")
-        
-        # Check network settings
-        if not (1 <= self.network.port <= 65535):
-            errors.append("Port must be between 1 and 65535")
-        
+
         # Check logging settings
         valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if self.logging.level not in valid_log_levels:
