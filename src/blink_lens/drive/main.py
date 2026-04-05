@@ -4,6 +4,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+from typing import Any, Dict
 
 import structlog
 
@@ -12,6 +13,17 @@ from blink_lens.drive.usb_gadget import USBGadgetManager
 
 # Commands that require root (invoke modprobe, mount, losetup, rsync via sudo)
 _PRIVILEGED_COMMANDS = {"start", "stop", "watch"}
+
+
+def _format_status(status: Dict[str, Any]) -> str:
+    """Format the gadget status dict as a human-readable string."""
+    drive_gb = status["drive_size"] / (1024 ** 3) if status["drive_size"] else 0
+    return (
+        f"Storage Mode:  {'ACTIVE' if status['active'] else 'INACTIVE'}\n"
+        f"USB Connected: {'YES' if status['connected'] else 'NO'}\n"
+        f"Configured:    {'YES' if status['configured'] else 'NO'}\n"
+        f"Virtual Drive: {drive_gb:.1f} GB ({status['virtual_drive_path']})"
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,7 +74,7 @@ async def _run() -> int:
         return 0 if ok else 1
     if args.command == "status":
         status = await manager.get_status()
-        print(status)
+        print(_format_status(status))
         return 0
     if args.command == "watch":
         from blink_lens.core.file_watcher import FileWatcher

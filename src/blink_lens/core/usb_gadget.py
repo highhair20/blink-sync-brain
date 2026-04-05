@@ -13,6 +13,7 @@ from typing import Dict, Any
 import structlog
 
 from blink_lens.config.settings import Settings
+from blink_lens.core.utils import run_command as _run_command_impl
 
 
 def _find_scripts_dir() -> Path:
@@ -147,12 +148,4 @@ class USBGadgetManager:
 
     async def _run_command(self, cmd: list) -> subprocess.CompletedProcess:
         """Run a command asynchronously and return a CompletedProcess."""
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await process.communicate()
-        return subprocess.CompletedProcess(
-            cmd, process.returncode, stdout.decode(), stderr.decode()
-        )
+        return await _run_command_impl(cmd)

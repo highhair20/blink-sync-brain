@@ -14,7 +14,13 @@ from blink_lens.drive.main import _run
 def _patch_manager(start=True, stop=True, status=None):
     """Return a context manager that patches USBGadgetManager and Settings.validate."""
     if status is None:
-        status = {"active": True, "connected": True}
+        status = {
+            "active": True,
+            "connected": True,
+            "configured": True,
+            "drive_size": 32 * 1024 ** 3,
+            "virtual_drive_path": "/var/blink_storage/virtual_drive.img",
+        }
     mock = MagicMock()
     mock.start_usb_gadget = AsyncMock(return_value=start)
     mock.stop_usb_gadget = AsyncMock(return_value=stop)

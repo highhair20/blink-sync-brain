@@ -25,9 +25,13 @@ from typing import Set
 import structlog
 
 from blink_lens.config.settings import Settings
+from blink_lens.core.utils import rsync_error_message, run_command as _run_command_impl
 
 
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".h264"}
+
+# How often (in seconds) to emit a "watcher healthy" heartbeat log line.
+_HEARTBEAT_INTERVAL = 60
 
 
 class FileWatcher:
@@ -40,10 +44,10 @@ class FileWatcher:
         self.logger = structlog.get_logger()
         self._running = False
         self._pushed_files: Set[str] = set()
-        self._failed_files: Set[str] = set()
         self._last_mtime: float = 0.0
         self._last_changed_at: float = 0.0
         self._pending_scan: bool = False
+        self._last_heartbeat_at: float = 0.0
 
     async def start(self) -> None:
         """Start watching for new clips.
@@ -51,6 +55,7 @@ class FileWatcher:
         Raises:
             ValueError: If required configuration (processor_host) is missing.
             FileNotFoundError: If the configured SSH key does not exist.
+            PermissionError: If the configured SSH key has unsafe permissions.
         """
         watcher = self.settings.watcher
 
@@ -95,12 +100,23 @@ class FileWatcher:
 
     async def _watch_loop(self) -> None:
         drive_path = self.settings.storage.virtual_drive_path
+        self._last_heartbeat_at = asyncio.get_event_loop().time()
 
         while self._running:
             try:
                 await self._tick(drive_path)
             except Exception as e:
                 self.logger.error("Error in watch loop", error=str(e))
+
+            now = asyncio.get_event_loop().time()
+            if now - self._last_heartbeat_at >= _HEARTBEAT_INTERVAL:
+                self._last_heartbeat_at = now
+                self.logger.info(
+                    "Watcher healthy",
+                    clips_pushed_total=len(self._pushed_files),
+                    processor=self.settings.watcher.processor_host,
+                )
+
             await asyncio.sleep(self.settings.watcher.poll_interval)
 
     async def _tick(self, drive_path: Path) -> None:
@@ -137,6 +153,10 @@ class FileWatcher:
         self.logger.info("Scanning virtual drive for new clips")
 
         if not await self._mount_shadow(drive_path, mount_point):
+            self.logger.warning(
+                "Could not mount virtual drive — clips will be retried on next scan. "
+                "Check that no other process is holding the drive image open."
+            )
             return
 
         try:
@@ -151,22 +171,17 @@ class FileWatcher:
                 rel = str(file_path.relative_to(mount_point))
                 if await self._push_file(file_path):
                     self._pushed_files.add(rel)
-                    self._failed_files.discard(rel)
                     self._save_state()
                 else:
-                    self._failed_files.add(rel)
                     self.logger.warning(
-                        "Push failed, will retry on next scan",
+                        "Push failed — will retry on next scan",
                         file=file_path.name,
                     )
         finally:
             await self._unmount_shadow()
 
     def _find_new_files(self, mount_point: Path) -> list:
-        """Return video files on the mount that have not yet been successfully pushed.
-
-        Includes files that previously failed so they are retried on the next scan.
-        """
+        """Return video files on the mount that have not yet been successfully pushed."""
         new_files = []
         for ext in VIDEO_EXTENSIONS:
             for file_path in mount_point.rglob(f"*{ext}"):
@@ -216,20 +231,21 @@ class FileWatcher:
                 self.logger.info("Clip pushed successfully", file=file_path.name)
                 return True
 
+            msg = rsync_error_message(result.returncode, result.stderr)
             self.logger.warning(
-                "rsync failed",
-                file=str(file_path),
+                "Push failed",
+                file=file_path.name,
                 attempt=attempt,
                 max_retries=max_retries,
-                stderr=result.stderr,
+                reason=msg,
             )
             if attempt < max_retries:
                 await asyncio.sleep(backoff_seconds * attempt)
 
         self.logger.error(
-            "rsync failed after all retries",
-            file=str(file_path),
-            stderr=result.stderr,
+            "Push failed after all retries — clip will be retried on next scan",
+            file=file_path.name,
+            reason=rsync_error_message(result.returncode, result.stderr),
         )
         return False
 
@@ -338,12 +354,4 @@ class FileWatcher:
 
     async def _run_command(self, cmd: list) -> subprocess.CompletedProcess:
         """Run a shell command asynchronously."""
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await process.communicate()
-        return subprocess.CompletedProcess(
-            cmd, process.returncode, stdout.decode(), stderr.decode()
-        )
+        return await _run_command_impl(cmd)

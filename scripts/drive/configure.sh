@@ -18,19 +18,41 @@ fi
 PROCESSOR_IP="$1"
 CONFIG="/opt/blink-lens/configs/drive.yaml"
 
-# Update processor_host in drive.yaml (via Python to avoid sed injection risks)
+# Update processor_host in drive.yaml (via Python to avoid sed injection risks
+# and to preserve any trailing inline comments on the line)
 python3 - <<PYEOF
 import re, sys
+
 path = "$CONFIG"
 ip   = "$PROCESSOR_IP"
-# Validate the IP looks sane before writing it into the config
-import re as _re
-if not _re.match(r'^[a-zA-Z0-9.\-]+$', ip):
+
+if not re.match(r'^[a-zA-Z0-9.\-]+\$', ip):
     print(f"ERROR: Refusing to write unsafe processor IP: {ip!r}", file=sys.stderr)
     sys.exit(1)
-text = open(path).read()
-text = _re.sub(r'processor_host:.*', f'processor_host: "{ip}"', text)
-open(path, 'w').write(text)
+
+try:
+    lines = open(path).readlines()
+except FileNotFoundError:
+    print(f"ERROR: Config file not found: {path}", file=sys.stderr)
+    sys.exit(1)
+
+updated = []
+found = False
+for line in lines:
+    if re.match(r'\s*processor_host:', line):
+        # Preserve any trailing inline comment (e.g.  # Pi #2 IP address)
+        comment_match = re.search(r'([ \t]*#.*)$', line)
+        trailing = comment_match.group(1) if comment_match else ""
+        updated.append(f'processor_host: "{ip}"{trailing}\n')
+        found = True
+    else:
+        updated.append(line)
+
+if not found:
+    print(f"ERROR: 'processor_host' key not found in {path}", file=sys.stderr)
+    sys.exit(1)
+
+open(path, 'w').writelines(updated)
 PYEOF
 echo "Set processor_host to ${PROCESSOR_IP} in ${CONFIG}"
 
