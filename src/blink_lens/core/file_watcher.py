@@ -16,6 +16,8 @@ Flow:
 
 import asyncio
 import json
+import os
+import shlex
 import subprocess
 from pathlib import Path
 from typing import Set
@@ -58,11 +60,18 @@ class FileWatcher:
                 "Set it in the config file or via the PROCESSOR_HOST environment variable."
             )
 
-        if watcher.ssh_key_path and not watcher.ssh_key_path.exists():
-            raise FileNotFoundError(
-                f"SSH key not found: {watcher.ssh_key_path}. "
-                "Ensure the key exists and is readable before starting the watcher."
-            )
+        if watcher.ssh_key_path:
+            if not watcher.ssh_key_path.exists():
+                raise FileNotFoundError(
+                    f"SSH key not found: {watcher.ssh_key_path}. "
+                    "Ensure the key exists and is readable before starting the watcher."
+                )
+            mode = watcher.ssh_key_path.stat().st_mode
+            if mode & 0o077:
+                raise PermissionError(
+                    f"SSH key {watcher.ssh_key_path} has unsafe permissions "
+                    f"({oct(mode & 0o777)}). Run: chmod 600 {watcher.ssh_key_path}"
+                )
 
         self._running = True
         self._load_state()
@@ -181,7 +190,7 @@ class FileWatcher:
 
         ssh_opts = "-o StrictHostKeyChecking=accept-new -o BatchMode=yes"
         if watcher.ssh_key_path:
-            ssh_opts += f" -i {watcher.ssh_key_path}"
+            ssh_opts += f" -i {shlex.quote(str(watcher.ssh_key_path))}"
 
         cmd = [
             "rsync", "-az",
@@ -229,27 +238,25 @@ class FileWatcher:
     # -------------------------------------------------------------------------
 
     async def _mount_shadow(self, drive_path: Path, mount_point: Path) -> bool:
-        """Loop-mount the virtual drive image read-only alongside g_mass_storage."""
+        """Loop-mount the virtual drive image read-only alongside g_mass_storage.
+
+        Uses `losetup --show` so the device name is returned directly, avoiding a
+        second lookup and the loop device leak that would occur if that lookup failed.
+        """
         mount_point.mkdir(parents=True, exist_ok=True)
 
-        # Create a new loop device backed by the image file
-        result = await self._run_command(["losetup", "-fP", str(drive_path)])
+        # Create loop device; --show prints the device path on stdout
+        result = await self._run_command(["losetup", "--show", "-fP", str(drive_path)])
         if result.returncode != 0:
             self.logger.error("Failed to create loop device", stderr=result.stderr)
             return False
 
-        # Resolve which loop device was just created
-        result = await self._run_command(["losetup", "-j", str(drive_path)])
-        if result.returncode != 0 or not result.stdout.strip():
-            self.logger.error("Could not find loop device for image")
+        loop_dev = result.stdout.strip()
+        if not loop_dev.startswith("/"):
+            self.logger.error("Unexpected losetup --show output", output=loop_dev)
+            # No loop device was attached, nothing to clean up
             return False
 
-        first_line = result.stdout.strip().splitlines()[0]
-        parts = first_line.split(":")
-        loop_dev = parts[0].strip() if parts else ""
-        if not loop_dev.startswith("/"):
-            self.logger.error("Unexpected losetup output format", output=first_line)
-            return False
         partition = f"{loop_dev}p1"
 
         # Wait for the partition device node to appear
@@ -282,14 +289,21 @@ class FileWatcher:
 
         result = await self._run_command(["mountpoint", "-q", str(mount_point)])
         if result.returncode == 0:
-            await self._run_command(["umount", str(mount_point)])
+            umount = await self._run_command(["umount", str(mount_point)])
+            if umount.returncode != 0:
+                self.logger.warning(
+                    "umount failed — loop device may remain attached",
+                    mount_point=str(mount_point),
+                    stderr=umount.stderr,
+                )
 
         result = await self._run_command(["losetup", "-j", str(drive_path)])
         if result.returncode == 0 and result.stdout.strip():
             for line in result.stdout.strip().splitlines():
                 parts = line.split(":")
-                if parts and parts[0].strip():
-                    await self._run_command(["losetup", "-d", parts[0].strip()])
+                loop_dev = parts[0].strip() if parts else ""
+                if loop_dev.startswith("/"):
+                    await self._run_command(["losetup", "-d", loop_dev])
 
     # -------------------------------------------------------------------------
     # State persistence
@@ -314,6 +328,7 @@ class FileWatcher:
             state_path.write_text(
                 json.dumps({"pushed_files": list(self._pushed_files)}, indent=2)
             )
+            os.chmod(state_path, 0o600)
         except Exception as e:
             self.logger.warning("Could not save watcher state", error=str(e))
 

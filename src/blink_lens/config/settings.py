@@ -213,16 +213,22 @@ class Settings:
         """
         if not config_path.exists():
             raise FileNotFoundError(f"Configuration file not found: {config_path}")
-        
-        with open(config_path, "r") as f:
-            config_data = yaml.safe_load(f)
-        
+
+        try:
+            with open(config_path, "r") as f:
+                config_data = yaml.safe_load(f)
+        except yaml.YAMLError as e:
+            raise ValueError(f"Invalid YAML in config file {config_path}: {e}") from e
+
+        if not config_data:
+            raise ValueError(f"Config file is empty: {config_path}")
+
         # Create settings instance
         settings = cls()
-        
+
         # Update settings from config file
         settings._update_from_dict(config_data)
-        
+
         return settings
     
     def _update_from_dict(self, config_data: dict):
@@ -427,5 +433,5 @@ class Settings:
         valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if self.logging.level not in valid_log_levels:
             errors.append(f"Log level must be one of: {valid_log_levels}")
-        
-        return errors 
+
+        return errors

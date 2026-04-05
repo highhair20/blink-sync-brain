@@ -18,8 +18,20 @@ fi
 PROCESSOR_IP="$1"
 CONFIG="/opt/blink-lens/configs/drive.yaml"
 
-# Update processor_host in drive.yaml
-sed -i "s|processor_host:.*|processor_host: \"${PROCESSOR_IP}\"|" "$CONFIG"
+# Update processor_host in drive.yaml (via Python to avoid sed injection risks)
+python3 - <<PYEOF
+import re, sys
+path = "$CONFIG"
+ip   = "$PROCESSOR_IP"
+# Validate the IP looks sane before writing it into the config
+import re as _re
+if not _re.match(r'^[a-zA-Z0-9.\-]+$', ip):
+    print(f"ERROR: Refusing to write unsafe processor IP: {ip!r}", file=sys.stderr)
+    sys.exit(1)
+text = open(path).read()
+text = _re.sub(r'processor_host:.*', f'processor_host: "{ip}"', text)
+open(path, 'w').write(text)
+PYEOF
 echo "Set processor_host to ${PROCESSOR_IP} in ${CONFIG}"
 
 # Generate SSH key if not already present

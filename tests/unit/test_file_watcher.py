@@ -58,6 +58,13 @@ class TestStateFile:
         # Should not raise
         watcher._save_state()
 
+    def test_save_state_sets_600_permissions(self, watcher: FileWatcher, settings: Settings):
+        watcher._pushed_files = {"clip1.mp4"}
+        settings.watcher.state_file.parent.mkdir(parents=True, exist_ok=True)
+        watcher._save_state()
+        mode = settings.watcher.state_file.stat().st_mode & 0o777
+        assert mode == 0o600
+
 
 class TestFindNewFiles:
     def test_returns_only_video_files(self, watcher: FileWatcher, tmp_path: Path):
@@ -185,12 +192,21 @@ class TestStartValidation:
         with patch.object(watcher, "_watch_loop", new_callable=AsyncMock):
             await watcher.start()  # should not raise
 
-    async def test_no_error_if_ssh_key_exists(self, watcher: FileWatcher, settings: Settings, tmp_path: Path):
+    async def test_no_error_if_ssh_key_exists_with_correct_perms(self, watcher: FileWatcher, settings: Settings, tmp_path: Path):
         key = tmp_path / "id_rsa"
         key.write_bytes(b"")
+        key.chmod(0o600)
         settings.watcher.ssh_key_path = key
         with patch.object(watcher, "_watch_loop", new_callable=AsyncMock):
             await watcher.start()  # should not raise
+
+    async def test_raises_if_ssh_key_has_unsafe_permissions(self, watcher: FileWatcher, settings: Settings, tmp_path: Path):
+        key = tmp_path / "id_rsa"
+        key.write_bytes(b"")
+        key.chmod(0o644)  # world-readable
+        settings.watcher.ssh_key_path = key
+        with pytest.raises(PermissionError, match="unsafe permissions"):
+            await watcher.start()
 
 
 class TestFailedFileRetry:
@@ -237,18 +253,12 @@ class TestFailedFileRetry:
 
 
 class TestLoopDeviceParsing:
-    async def test_handles_valid_losetup_output(self, watcher: FileWatcher, tmp_path: Path):
+    async def test_handles_valid_losetup_show_output(self, watcher: FileWatcher, tmp_path: Path):
         drive = tmp_path / "drive.img"
         drive.write_bytes(b"")
-        watcher.settings.storage.virtual_drive_path = drive
-
-        losetup_output = "/dev/loop0: [2049]:12345 (/tmp/drive.img)"
-        partition = tmp_path / "loop0p1"
-        partition.write_bytes(b"")
 
         responses = [
-            _make_completed(0),                         # losetup -fP
-            _make_completed(0, stdout=losetup_output),  # losetup -j
+            _make_completed(0, stdout="/dev/loop0\n"),  # losetup --show -fP
             _make_completed(0),                         # mount
         ]
 
@@ -263,11 +273,20 @@ class TestLoopDeviceParsing:
         drive.write_bytes(b"")
 
         responses = [
-            _make_completed(0),                        # losetup -fP
-            _make_completed(0, stdout="malformed\n"),  # losetup -j (no colon, no device)
+            _make_completed(0, stdout="malformed\n"),  # losetup --show returns non-path
         ]
 
         with patch.object(watcher, "_run_command", new_callable=AsyncMock, side_effect=responses):
+            result = await watcher._mount_shadow(drive, tmp_path / "mnt")
+
+        assert result is False
+
+    async def test_losetup_failure_returns_false(self, watcher: FileWatcher, tmp_path: Path):
+        drive = tmp_path / "drive.img"
+        drive.write_bytes(b"")
+
+        with patch.object(watcher, "_run_command", new_callable=AsyncMock,
+                          return_value=_make_completed(1, stderr="no free loop devices")):
             result = await watcher._mount_shadow(drive, tmp_path / "mnt")
 
         assert result is False

@@ -179,6 +179,17 @@ class TestWatchCommand:
                         code = await _run()
         assert code == 1
 
+    async def test_returns_1_on_unsafe_ssh_key_permissions(self):
+        ctx, _ = _patch_manager()
+        mock_watcher = MagicMock()
+        mock_watcher.start = AsyncMock(side_effect=PermissionError("unsafe permissions"))
+        with _as_root():
+            with ctx:
+                with patch("blink_lens.core.file_watcher.FileWatcher", return_value=mock_watcher):
+                    with patch("sys.argv", ["blink-drive", "watch"]):
+                        code = await _run()
+        assert code == 1
+
 
 class TestNoCommand:
     async def test_returns_2(self):

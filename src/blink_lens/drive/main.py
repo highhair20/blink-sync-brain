@@ -69,7 +69,7 @@ async def _run() -> int:
         try:
             watcher = FileWatcher(settings)
             await watcher.start()
-        except (ValueError, FileNotFoundError) as e:
+        except (ValueError, FileNotFoundError, PermissionError) as e:
             logger.error("Watcher configuration error", detail=str(e))
             return 1
         return 0

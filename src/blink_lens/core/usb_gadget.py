@@ -61,14 +61,13 @@ class USBGadgetManager:
                 if not await self._create_virtual_drive():
                     return False
 
-            self.is_configured = True
-
             result = await self._run_command(
                 ["sudo", str(self._scripts_dir / "start_storage_mode.sh")]
             )
             if result.returncode != 0:
                 self.logger.error("Failed to start Storage Mode", error=result.stderr)
                 return False
+            self.is_configured = True
             self.is_active = True
             self.logger.info("Storage Mode active")
             return True

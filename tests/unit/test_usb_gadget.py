@@ -75,6 +75,7 @@ class TestStartUsbGadget:
                 result = await manager.start_usb_gadget()
         assert result is False
         assert manager.is_active is False
+        assert manager.is_configured is False  # not set until fully started
 
     async def test_returns_false_on_exception(self, manager: USBGadgetManager):
         with patch.object(manager, "_create_virtual_drive", new_callable=AsyncMock, side_effect=OSError("no such file")):
