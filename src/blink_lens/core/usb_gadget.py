@@ -113,14 +113,6 @@ class USBGadgetManager:
             "connected": await self._is_connected(),
         }
 
-    def _is_raspberry_pi(self) -> bool:
-        """Check if running on Raspberry Pi."""
-        try:
-            with open("/proc/cpuinfo", "r") as f:
-                return "Raspberry Pi" in f.read()
-        except Exception:
-            return False
-
     async def _create_virtual_drive(self) -> bool:
         """Create the virtual drive image using create-virtual-storage.sh."""
         self.logger.info("Creating virtual drive", path=str(self.virtual_drive_path))

@@ -136,6 +136,7 @@ class TestSettingsValidation:
     def test_valid_settings_no_errors(self, tmp_path):
         s = Settings()
         s.storage.virtual_drive_path = tmp_path / "drive.img"
+        s.watcher.processor_host = "192.168.1.2"  # required field
         # Parent dir (tmp_path) exists — no storage error
         errors = s.validate()
         # Filter out path errors since /var/blink_storage may not exist in test env

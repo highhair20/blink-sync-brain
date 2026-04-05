@@ -105,7 +105,7 @@ class FileWatcher:
         while self._running:
             try:
                 await self._tick(drive_path)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 — keep loop alive on transient errors
                 self.logger.error("Error in watch loop", error=str(e))
 
             now = asyncio.get_event_loop().time()
@@ -155,7 +155,9 @@ class FileWatcher:
         if not await self._mount_shadow(drive_path, mount_point):
             self.logger.warning(
                 "Could not mount virtual drive — clips will be retried on next scan. "
-                "Check that no other process is holding the drive image open."
+                "Most likely causes: (1) blink-drive is not running as root, "
+                "(2) the virtual drive image does not exist yet (run: blink-drive start), "
+                "(3) losetup/mount are not available on this system."
             )
             return
 
@@ -217,6 +219,7 @@ class FileWatcher:
 
         max_retries = 3
         backoff_seconds = 5
+        last_result = None
 
         for attempt in range(1, max_retries + 1):
             self.logger.info(
@@ -225,13 +228,13 @@ class FileWatcher:
                 attempt=attempt,
                 max_retries=max_retries,
             )
-            result = await self._run_command(cmd)
+            last_result = await self._run_command(cmd)
 
-            if result.returncode == 0:
+            if last_result.returncode == 0:
                 self.logger.info("Clip pushed successfully", file=file_path.name)
                 return True
 
-            msg = rsync_error_message(result.returncode, result.stderr)
+            msg = rsync_error_message(last_result.returncode, last_result.stderr)
             self.logger.warning(
                 "Push failed",
                 file=file_path.name,
@@ -242,10 +245,15 @@ class FileWatcher:
             if attempt < max_retries:
                 await asyncio.sleep(backoff_seconds * attempt)
 
+        reason = (
+            rsync_error_message(last_result.returncode, last_result.stderr)
+            if last_result is not None
+            else "no attempts made"
+        )
         self.logger.error(
             "Push failed after all retries — clip will be retried on next scan",
             file=file_path.name,
-            reason=rsync_error_message(result.returncode, result.stderr),
+            reason=reason,
         )
         return False
 
@@ -316,7 +324,7 @@ class FileWatcher:
         result = await self._run_command(["losetup", "-j", str(drive_path)])
         if result.returncode == 0 and result.stdout.strip():
             for line in result.stdout.strip().splitlines():
-                parts = line.split(":")
+                parts = line.split(":", 1)
                 loop_dev = parts[0].strip() if parts else ""
                 if loop_dev.startswith("/"):
                     await self._run_command(["losetup", "-d", loop_dev])

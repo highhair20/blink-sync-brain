@@ -30,9 +30,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-drive = [
-    "pyusb>=1.2.0"
-]
+drive = []
 processor = [
     "opencv-python-headless>=4.8.0",
     "face-recognition>=1.3.0",

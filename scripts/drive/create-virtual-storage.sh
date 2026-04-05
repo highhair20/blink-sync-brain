@@ -23,7 +23,10 @@ parted "${DRIVE_IMG}" --script mkpart primary fat32 1MiB 100%
 # Format the partition
 losetup -fP "${DRIVE_IMG}"
 LOOP=$(losetup -j "${DRIVE_IMG}" | cut -d: -f1)
+
+# Always detach the loop device on exit (success, failure, or Ctrl-C)
+trap 'losetup -d "${LOOP}" 2>/dev/null || true' EXIT
+
 mkfs.vfat -F 32 "${LOOP}p1"
-losetup -d "${LOOP}"
 
 echo "Done."

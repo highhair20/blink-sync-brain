@@ -1,18 +1,33 @@
 #!/usr/bin/env python3
 import argparse
 import asyncio
+import logging
 import os
 import sys
 from pathlib import Path
 from typing import Any, Dict
 
 import structlog
+import structlog.stdlib
 
 from blink_lens.config.settings import Settings
 from blink_lens.drive.usb_gadget import USBGadgetManager
 
 # Commands that require root (invoke modprobe, mount, losetup, rsync via sudo)
 _PRIVILEGED_COMMANDS = {"start", "stop", "watch"}
+
+
+def _configure_logging() -> None:
+    """Configure structlog to print human-readable lines to the console."""
+    structlog.configure(
+        processors=[
+            structlog.stdlib.add_log_level,
+            structlog.dev.ConsoleRenderer(colors=sys.stderr.isatty()),
+        ],
+        wrapper_class=structlog.BoundLogger,
+        context_class=dict,
+        logger_factory=structlog.PrintLoggerFactory(),
+    )
 
 
 def _format_status(status: Dict[str, Any]) -> str:
@@ -45,6 +60,7 @@ def parse_args() -> argparse.Namespace:
 
 
 async def _run() -> int:
+    _configure_logging()
     args = parse_args()
     logger = structlog.get_logger()
 
@@ -68,6 +84,11 @@ async def _run() -> int:
 
     if args.command == "start":
         ok = await manager.start_usb_gadget()
+        if ok:
+            logger.info(
+                "Storage Mode active — now run: sudo blink-drive watch",
+                hint="blink-drive watch pushes clips to the Processor Pi",
+            )
         return 0 if ok else 1
     if args.command == "stop":
         ok = await manager.stop_usb_gadget()
@@ -84,7 +105,9 @@ async def _run() -> int:
         except (ValueError, FileNotFoundError, PermissionError) as e:
             logger.error("Watcher configuration error", detail=str(e))
             return 1
-        return 0
+        # start() only returns if the watch loop exits — unexpected in normal operation
+        logger.error("Watcher exited unexpectedly — check logs for errors")
+        return 1
 
     logger.error("No command provided. See --help")
     return 2

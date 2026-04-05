@@ -434,4 +434,11 @@ class Settings:
         if self.logging.level not in valid_log_levels:
             errors.append(f"Log level must be one of: {valid_log_levels}")
 
+        # Check watcher settings (Drive Pi)
+        if not self.watcher.processor_host:
+            errors.append(
+                "watcher.processor_host is not set. "
+                "Run configure.sh <processor-ip> to set it, or edit configs/drive.yaml."
+            )
+
         return errors

@@ -147,18 +147,6 @@ class TestGetDriveSize:
         assert await manager._get_drive_size() == 0
 
 
-class TestIsRaspberryPi:
-    def test_true_on_pi_hardware(self, manager: USBGadgetManager, tmp_path: Path):
-        fake_cpuinfo = tmp_path / "cpuinfo"
-        fake_cpuinfo.write_text("Hardware\t: BCM2835\nRevision\t: 9020e0\nModel\t: Raspberry Pi Zero 2 W\n")
-        with patch("builtins.open", return_value=fake_cpuinfo.open()):
-            assert manager._is_raspberry_pi() is True
-
-    def test_false_when_file_missing(self, manager: USBGadgetManager):
-        with patch("builtins.open", side_effect=OSError):
-            assert manager._is_raspberry_pi() is False
-
-
 class TestCreateVirtualDrive:
     async def test_returns_true_on_success(self, manager: USBGadgetManager):
         with patch.object(manager, "_run_command", new_callable=AsyncMock, return_value=_ok()):

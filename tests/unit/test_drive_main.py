@@ -160,7 +160,8 @@ class TestWatchCommand:
                 with patch("blink_lens.core.file_watcher.FileWatcher", return_value=mock_watcher):
                     with patch("sys.argv", ["blink-drive", "watch"]):
                         code = await _run()
-        assert code == 0
+        # start() returning normally means the loop exited unexpectedly — returns 1
+        assert code == 1
         mock_watcher.start.assert_called_once()
 
     async def test_returns_1_on_missing_processor_host(self):
