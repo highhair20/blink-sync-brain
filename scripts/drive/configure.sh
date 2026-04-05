@@ -18,15 +18,19 @@ fi
 PROCESSOR_IP="$1"
 CONFIG="/opt/blink-lens/configs/drive.yaml"
 
-# Update processor_host in drive.yaml (via Python to avoid sed injection risks
-# and to preserve any trailing inline comments on the line)
-python3 - <<PYEOF
+# Detect the actual non-root user (the one who ran sudo, or current user)
+PI_USER="${SUDO_USER:-$(id -un)}"
+
+# Update processor_host in drive.yaml.
+# IP is passed as a command-line argument to Python (never interpolated into source)
+# so there is no shell-injection risk regardless of what the user types.
+python3 - "$PROCESSOR_IP" "$CONFIG" <<'PYEOF'
 import re, sys
 
-path = "$CONFIG"
-ip   = "$PROCESSOR_IP"
+ip   = sys.argv[1]
+path = sys.argv[2]
 
-if not re.match(r'^[a-zA-Z0-9.\-]+\$', ip):
+if not re.match(r'^[a-zA-Z0-9.\-]+$', ip):
     print(f"ERROR: Refusing to write unsafe processor IP: {ip!r}", file=sys.stderr)
     sys.exit(1)
 
@@ -57,19 +61,33 @@ PYEOF
 echo "Set processor_host to ${PROCESSOR_IP} in ${CONFIG}"
 
 # Generate SSH key if not already present
-sudo mkdir -p /home/pi/.ssh && sudo chown pi:pi /home/pi/.ssh && sudo chmod 700 /home/pi/.ssh
-if [[ ! -f /home/pi/.ssh/id_rsa ]]; then
-    ssh-keygen -t rsa -f /home/pi/.ssh/id_rsa -N ""
-    echo "SSH key generated"
+SSH_DIR="/home/${PI_USER}/.ssh"
+sudo mkdir -p "${SSH_DIR}"
+sudo chown "${PI_USER}:${PI_USER}" "${SSH_DIR}"
+sudo chmod 700 "${SSH_DIR}"
+
+SSH_KEY="${SSH_DIR}/id_rsa"
+if [[ ! -f "${SSH_KEY}" ]]; then
+    sudo -u "${PI_USER}" ssh-keygen -t ed25519 -f "${SSH_KEY}" -N ""
+    echo "SSH key generated (${SSH_KEY})"
 else
     echo "SSH key already exists, skipping"
 fi
 
-# Copy key to Pi #2 (will prompt for Pi #2's password)
+# Copy key to Pi #2 (will prompt for Pi #2's password once)
 echo "Copying SSH key to pi@${PROCESSOR_IP} — enter Pi #2's password when prompted:"
-ssh-copy-id -i /home/pi/.ssh/id_rsa.pub "pi@${PROCESSOR_IP}"
+if ! sudo -u "${PI_USER}" ssh-copy-id -i "${SSH_KEY}.pub" "pi@${PROCESSOR_IP}"; then
+    echo "ERROR: ssh-copy-id failed. Check that:"
+    echo "  - Pi #2 is online and SSH is enabled"
+    echo "  - Password authentication is not disabled on Pi #2"
+    echo "  - The IP address ${PROCESSOR_IP} is correct"
+    exit 1
+fi
 
-# Verify
+# Verify the connection works
 echo "Testing SSH connection to Pi #2..."
-ssh "pi@${PROCESSOR_IP}" "echo 'SSH OK'"
-echo "Done."
+if ! sudo -u "${PI_USER}" ssh "pi@${PROCESSOR_IP}" "echo 'SSH OK'"; then
+    echo "ERROR: SSH test failed. The key was copied but the connection did not work."
+    exit 1
+fi
+echo "Done. Pi #1 is configured to push clips to ${PROCESSOR_IP}."

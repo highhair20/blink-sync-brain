@@ -272,7 +272,7 @@ class TestHeartbeat:
         with patch("asyncio.sleep", side_effect=fake_sleep):
             with patch.object(watcher, "_tick", new_callable=AsyncMock):
                 # Force heartbeat by setting last_heartbeat far in the past
-                with patch("asyncio.get_event_loop") as mock_loop:
+                with patch("asyncio.get_running_loop") as mock_loop:
                     mock_loop.return_value.time.side_effect = [0.0, 999.0, 999.0]
                     with patch.object(watcher.logger, "info") as mock_info:
                         watcher._running = True

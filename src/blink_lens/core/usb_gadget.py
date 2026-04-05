@@ -102,15 +102,18 @@ class USBGadgetManager:
         """
         Get the current status of the USB gadget.
 
-        Returns:
-            Dict containing status information
+        Returns live system state — safe to call from a separate CLI invocation.
         """
+        connected = await self._is_connected()
+        drive_size = await self._get_drive_size()
         return {
-            "configured": self.is_configured,
-            "active": self.is_active,
+            # Live: query lsmod rather than cached in-memory flags so that
+            # `blink-drive status` reflects reality after a reboot.
+            "active": connected,
+            "configured": connected,
+            "connected": connected,
             "virtual_drive_path": str(self.virtual_drive_path),
-            "drive_size": await self._get_drive_size(),
-            "connected": await self._is_connected(),
+            "drive_size": drive_size,
         }
 
     async def _create_virtual_drive(self) -> bool:

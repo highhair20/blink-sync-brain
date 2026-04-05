@@ -8,7 +8,9 @@ SIZE_MB=32768
 echo "Creating virtual storage at ${DRIVE_IMG} (${SIZE_MB} MB)..."
 
 mkdir -p "${STORAGE_DIR}"
-chown pi:pi "${STORAGE_DIR}"
+# Use the non-root user who invoked sudo, not the hardcoded 'pi' username
+OWNER="${SUDO_USER:-pi}"
+chown "${OWNER}:${OWNER}" "${STORAGE_DIR}"
 chmod 755 "${STORAGE_DIR}"
 
 mkdir -p /mnt/blink_shadow

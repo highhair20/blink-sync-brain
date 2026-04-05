@@ -407,9 +407,8 @@ class Settings:
         """
         errors = []
         
-        # Check storage paths
-        if not self.storage.virtual_drive_path.parent.exists():
-            errors.append(f"Virtual drive directory does not exist: {self.storage.virtual_drive_path.parent}")
+        # Note: storage path is not checked here — if the virtual drive image does not exist,
+        # start_usb_gadget() will create it automatically.
         
         # Check processing settings
         if self.processing.frame_skip < 1:
@@ -433,12 +432,5 @@ class Settings:
         valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if self.logging.level not in valid_log_levels:
             errors.append(f"Log level must be one of: {valid_log_levels}")
-
-        # Check watcher settings (Drive Pi)
-        if not self.watcher.processor_host:
-            errors.append(
-                "watcher.processor_host is not set. "
-                "Run configure.sh <processor-ip> to set it, or edit configs/drive.yaml."
-            )
 
         return errors

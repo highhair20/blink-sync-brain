@@ -100,7 +100,7 @@ class FileWatcher:
 
     async def _watch_loop(self) -> None:
         drive_path = self.settings.storage.virtual_drive_path
-        self._last_heartbeat_at = asyncio.get_event_loop().time()
+        self._last_heartbeat_at = asyncio.get_running_loop().time()
 
         while self._running:
             try:
@@ -108,7 +108,7 @@ class FileWatcher:
             except Exception as e:  # noqa: BLE001 — keep loop alive on transient errors
                 self.logger.error("Error in watch loop", error=str(e))
 
-            now = asyncio.get_event_loop().time()
+            now = asyncio.get_running_loop().time()
             if now - self._last_heartbeat_at >= _HEARTBEAT_INTERVAL:
                 self._last_heartbeat_at = now
                 self.logger.info(
@@ -127,7 +127,7 @@ class FileWatcher:
             self.logger.warning("Virtual drive image not found", path=str(drive_path))
             return
 
-        now = asyncio.get_event_loop().time()
+        now = asyncio.get_running_loop().time()
 
         if current_mtime != self._last_mtime:
             # Image changed — reset settle timer and wait
@@ -291,7 +291,11 @@ class FileWatcher:
             await asyncio.sleep(0.5)
 
         if not Path(partition).exists():
-            self.logger.error("Partition device not found", partition=partition)
+            self.logger.error(
+                "Partition device not found — ensure 'parted' is installed "
+                "(run: sudo apt install parted)",
+                partition=partition,
+            )
             await self._run_command(["losetup", "-d", loop_dev])
             return False
 
