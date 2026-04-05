@@ -41,14 +41,13 @@ echo "Recent USB-related messages:"
 dmesg | grep -i usb | tail -10
 echo
 
-echo "6. Testing manual module loading..."
-echo "Attempting to load g_mass_storage module..."
-modprobe -r g_mass_storage 2>/dev/null || true
-if modprobe g_mass_storage file=/var/blink_storage/virtual_drive.img removable=1 stall=0; then
-    echo "✅ Module loaded successfully"
-    lsmod | grep g_mass_storage
+echo "6. Checking g_mass_storage module parameters..."
+if lsmod | grep -q g_mass_storage; then
+    echo "✅ g_mass_storage is loaded"
+    cat /sys/module/g_mass_storage/parameters/file 2>/dev/null && echo || echo "  (parameters not readable)"
 else
-    echo "❌ Failed to load module"
+    echo "❌ g_mass_storage is not loaded"
+    echo "  To load manually: sudo modprobe g_mass_storage file=/var/blink_storage/virtual_drive.img removable=1 stall=0"
 fi
 echo
 
