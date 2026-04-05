@@ -240,7 +240,9 @@ class FileWatcher:
                 attempt=attempt,
                 max_retries=max_retries,
             )
-            last_result = await self._run_command(cmd)
+            last_result = await self._run_command(
+                cmd, timeout=watcher.rsync_timeout + 10
+            )
 
             if last_result.returncode == 0:
                 self.logger.info("Clip pushed successfully", file=file_path.name)
@@ -376,6 +378,8 @@ class FileWatcher:
     # Helpers
     # -------------------------------------------------------------------------
 
-    async def _run_command(self, cmd: list) -> subprocess.CompletedProcess:
+    async def _run_command(
+        self, cmd: list, timeout: float = 30
+    ) -> subprocess.CompletedProcess:
         """Run a shell command asynchronously."""
-        return await _run_command_impl(cmd)
+        return await _run_command_impl(cmd, timeout=timeout)

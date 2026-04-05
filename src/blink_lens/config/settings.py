@@ -20,6 +20,25 @@ _logger = logging.getLogger(__name__)
 _KNOWN_SECTIONS = {"storage", "processing", "face_recognition", "notifications",
                    "watcher", "network", "logging"}
 
+# Known keys per section — used to warn on typos in YAML config files.
+_KNOWN_SECTION_KEYS: dict = {
+    "storage": {"virtual_drive_path", "virtual_drive_size_gb", "video_directory",
+                "results_directory", "cleanup_threshold", "retention_days", "monitor_interval"},
+    "processing": {"frame_skip", "monitor_interval", "max_concurrent_videos",
+                   "processing_timeout", "enable_face_recognition", "enable_video_stitching"},
+    "face_recognition": {"database_path", "confidence_threshold", "tolerance",
+                         "min_face_size", "enable_batch_processing"},
+    "notifications": {"enable_notifications", "notification_types", "email_enabled",
+                      "smtp_host", "smtp_port", "smtp_user", "smtp_password",
+                      "email_from", "email_to", "pushbullet_enabled", "pushbullet_api_key",
+                      "webhook_enabled", "webhook_url"},
+    "watcher": {"shadow_mount_point", "processor_host", "processor_user",
+                "processor_video_path", "ssh_key_path", "poll_interval",
+                "settle_seconds", "rsync_timeout", "state_file"},
+    "network": {"host", "port", "enable_ssl", "ssl_cert_path", "ssl_key_path"},
+    "logging": {"level", "format", "file_path", "max_size_mb", "backup_count"},
+}
+
 
 @dataclass
 class StorageSettings:
@@ -143,31 +162,50 @@ class Settings:
         so an explicitly empty string (e.g. FOO="" in .env) is treated as "unset"
         rather than overwriting the default.
         """
+        def _int(var: str, v: str) -> Optional[int]:
+            try:
+                return int(v)
+            except ValueError:
+                _logger.warning("Ignoring env var %s=%r — expected an integer", var, v)
+                return None
+
+        def _float(var: str, v: str) -> Optional[float]:
+            try:
+                return float(v)
+            except ValueError:
+                _logger.warning("Ignoring env var %s=%r — expected a number", var, v)
+                return None
+
         # Storage settings
         if (v := os.getenv("VIRTUAL_DRIVE_PATH")) is not None:
             self.storage.virtual_drive_path = Path(v)
         if (v := os.getenv("VIRTUAL_DRIVE_SIZE_GB")) is not None:
-            self.storage.virtual_drive_size_gb = int(v)
+            if (n := _int("VIRTUAL_DRIVE_SIZE_GB", v)) is not None:
+                self.storage.virtual_drive_size_gb = n
         if (v := os.getenv("VIDEO_DIRECTORY")) is not None:
             self.storage.video_directory = Path(v)
 
         # Processing settings
         if (v := os.getenv("FRAME_SKIP")) is not None:
-            self.processing.frame_skip = int(v)
+            if (n := _int("FRAME_SKIP", v)) is not None:
+                self.processing.frame_skip = n
         if (v := os.getenv("MAX_CONCURRENT_VIDEOS")) is not None:
-            self.processing.max_concurrent_videos = int(v)
+            if (n := _int("MAX_CONCURRENT_VIDEOS", v)) is not None:
+                self.processing.max_concurrent_videos = n
 
         # Face recognition settings
         if (v := os.getenv("FACE_DATABASE_PATH")) is not None:
             self.face_recognition.database_path = Path(v)
         if (v := os.getenv("FACE_CONFIDENCE_THRESHOLD")) is not None:
-            self.face_recognition.confidence_threshold = float(v)
+            if (f := _float("FACE_CONFIDENCE_THRESHOLD", v)) is not None:
+                self.face_recognition.confidence_threshold = f
 
         # Network settings
         if (v := os.getenv("HOST")) is not None:
             self.network.host = v
         if (v := os.getenv("PORT")) is not None:
-            self.network.port = int(v)
+            if (n := _int("PORT", v)) is not None:
+                self.network.port = n
 
         # Logging settings
         if (v := os.getenv("LOG_LEVEL")) is not None:
@@ -189,7 +227,8 @@ class Settings:
         if (v := os.getenv("NOTIFICATION_SMTP_HOST")) is not None:
             self.notifications.smtp_host = v
         if (v := os.getenv("NOTIFICATION_SMTP_PORT")) is not None:
-            self.notifications.smtp_port = int(v)
+            if (n := _int("NOTIFICATION_SMTP_PORT", v)) is not None:
+                self.notifications.smtp_port = n
         if (v := os.getenv("NOTIFICATION_SMTP_USER")) is not None:
             self.notifications.smtp_user = v
         if (v := os.getenv("NOTIFICATION_SMTP_PASSWORD")) is not None:
@@ -243,6 +282,15 @@ class Settings:
         for key in config_data:
             if key not in _KNOWN_SECTIONS:
                 _logger.warning("Unrecognised config section '%s' — check for typos", key)
+
+        for section, keys in _KNOWN_SECTION_KEYS.items():
+            if section in config_data and isinstance(config_data[section], dict):
+                for field_key in config_data[section]:
+                    if field_key not in keys:
+                        _logger.warning(
+                            "Unrecognised key '%s' in config section '%s' — check for typos",
+                            field_key, section,
+                        )
 
         # Storage settings
         if "storage" in config_data:

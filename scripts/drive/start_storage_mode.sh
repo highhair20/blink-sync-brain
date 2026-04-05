@@ -2,11 +2,26 @@
 set -euo pipefail
 
 DRIVE_IMG="/var/blink_storage/virtual_drive.img"
-MOUNT_POINT="/mnt/blink_drive"
+MOUNT_POINT="/mnt/blink_shadow"   # must match shadow_mount_point in drive.yaml
 
 echo "Switching to Storage Mode for Blink..."
 
-# Ensure the drive is unmounted before starting the gadget
+# Pre-flight: verify the drive image exists and is at least 1 MB
+# (guards against a partially-created or zero-byte image that would silently
+# confuse the Blink Sync Module without producing a clear error)
+if [[ ! -f "${DRIVE_IMG}" ]]; then
+    echo "ERROR: Virtual drive image not found: ${DRIVE_IMG}"
+    echo "  Run: sudo blink-drive start   (this creates the image automatically)"
+    exit 1
+fi
+IMAGE_SIZE=$(stat -c%s "${DRIVE_IMG}" 2>/dev/null || echo 0)
+if [[ "${IMAGE_SIZE}" -lt 1048576 ]]; then
+    echo "ERROR: Virtual drive image is too small (${IMAGE_SIZE} bytes) — it may be corrupted."
+    echo "  Delete it and run: sudo blink-drive start"
+    exit 1
+fi
+
+# Ensure the shadow mount is detached before starting the gadget
 umount "${MOUNT_POINT}" &>/dev/null || true
 
 # Detach any loop devices associated with the image

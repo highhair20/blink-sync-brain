@@ -109,7 +109,7 @@ fi
 
 # Verify the connection works with the key (no password)
 echo "Testing SSH connection to Pi #2..."
-if ! sudo -u "${PI_USER}" ssh "${PROCESSOR_USER}@${PROCESSOR_IP}" "echo 'SSH OK'"; then
+if ! sudo -u "${PI_USER}" ssh -i "${SSH_KEY}" -o IdentitiesOnly=yes "${PROCESSOR_USER}@${PROCESSOR_IP}" "echo 'SSH OK'"; then
     echo ""
     echo "ERROR: SSH test failed. The key was copied but the connection did not work."
     echo "Try running manually: ssh ${PROCESSOR_USER}@${PROCESSOR_IP}"

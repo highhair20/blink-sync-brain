@@ -30,11 +30,13 @@ def rsync_error_message(returncode: int, stderr: str) -> str:
 _SUBPROCESS_TIMEOUT = 30  # seconds — prevents hung losetup/mount/umount from stalling the loop
 
 
-async def run_command(cmd: List[str]) -> subprocess.CompletedProcess:
+async def run_command(
+    cmd: List[str], timeout: float = _SUBPROCESS_TIMEOUT
+) -> subprocess.CompletedProcess:
     """Run a shell command asynchronously and return a CompletedProcess.
 
     Raises asyncio.TimeoutError if the subprocess does not complete within
-    _SUBPROCESS_TIMEOUT seconds. Callers should treat this as a transient error.
+    *timeout* seconds. Callers should treat this as a transient error.
     """
     process = await asyncio.create_subprocess_exec(
         *cmd,
@@ -43,7 +45,7 @@ async def run_command(cmd: List[str]) -> subprocess.CompletedProcess:
     )
     try:
         stdout, stderr = await asyncio.wait_for(
-            process.communicate(), timeout=_SUBPROCESS_TIMEOUT
+            process.communicate(), timeout=timeout
         )
     except asyncio.TimeoutError:
         process.kill()
