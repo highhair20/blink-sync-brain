@@ -5,6 +5,7 @@ This module handles configuration management for the Blink camera
 system enhancement application.
 """
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -12,6 +13,12 @@ from typing import Optional
 
 import yaml
 from dotenv import load_dotenv
+
+_logger = logging.getLogger(__name__)
+
+# Top-level YAML sections recognised by _update_from_dict.
+_KNOWN_SECTIONS = {"storage", "processing", "face_recognition", "notifications",
+                   "watcher", "network", "logging"}
 
 
 @dataclass
@@ -130,75 +137,71 @@ class Settings:
         self._load_from_env()
     
     def _load_from_env(self):
-        """Load settings from environment variables."""
-        # Storage settings
-        if os.getenv("VIRTUAL_DRIVE_PATH"):
-            self.storage.virtual_drive_path = Path(os.getenv("VIRTUAL_DRIVE_PATH"))
-        
-        if os.getenv("VIRTUAL_DRIVE_SIZE_GB"):
-            self.storage.virtual_drive_size_gb = int(os.getenv("VIRTUAL_DRIVE_SIZE_GB"))
-        
-        if os.getenv("VIDEO_DIRECTORY"):
-            self.storage.video_directory = Path(os.getenv("VIDEO_DIRECTORY"))
-        
-        # Processing settings
-        if os.getenv("FRAME_SKIP"):
-            self.processing.frame_skip = int(os.getenv("FRAME_SKIP"))
-        
-        if os.getenv("MAX_CONCURRENT_VIDEOS"):
-            self.processing.max_concurrent_videos = int(os.getenv("MAX_CONCURRENT_VIDEOS"))
-        
-        # Face recognition settings
-        if os.getenv("FACE_DATABASE_PATH"):
-            self.face_recognition.database_path = Path(os.getenv("FACE_DATABASE_PATH"))
-        
-        if os.getenv("FACE_CONFIDENCE_THRESHOLD"):
-            self.face_recognition.confidence_threshold = float(os.getenv("FACE_CONFIDENCE_THRESHOLD"))
-        
-        # Network settings
-        if os.getenv("HOST"):
-            self.network.host = os.getenv("HOST")
-        
-        if os.getenv("PORT"):
-            self.network.port = int(os.getenv("PORT"))
-        
-        # Logging settings
-        if os.getenv("LOG_LEVEL"):
-            self.logging.level = os.getenv("LOG_LEVEL")
+        """Load settings from environment variables.
 
-        if os.getenv("LOG_FILE"):
-            self.logging.file_path = Path(os.getenv("LOG_FILE"))
+        Each variable is read once and applied only when the value is not None,
+        so an explicitly empty string (e.g. FOO="" in .env) is treated as "unset"
+        rather than overwriting the default.
+        """
+        # Storage settings
+        if (v := os.getenv("VIRTUAL_DRIVE_PATH")) is not None:
+            self.storage.virtual_drive_path = Path(v)
+        if (v := os.getenv("VIRTUAL_DRIVE_SIZE_GB")) is not None:
+            self.storage.virtual_drive_size_gb = int(v)
+        if (v := os.getenv("VIDEO_DIRECTORY")) is not None:
+            self.storage.video_directory = Path(v)
+
+        # Processing settings
+        if (v := os.getenv("FRAME_SKIP")) is not None:
+            self.processing.frame_skip = int(v)
+        if (v := os.getenv("MAX_CONCURRENT_VIDEOS")) is not None:
+            self.processing.max_concurrent_videos = int(v)
+
+        # Face recognition settings
+        if (v := os.getenv("FACE_DATABASE_PATH")) is not None:
+            self.face_recognition.database_path = Path(v)
+        if (v := os.getenv("FACE_CONFIDENCE_THRESHOLD")) is not None:
+            self.face_recognition.confidence_threshold = float(v)
+
+        # Network settings
+        if (v := os.getenv("HOST")) is not None:
+            self.network.host = v
+        if (v := os.getenv("PORT")) is not None:
+            self.network.port = int(v)
+
+        # Logging settings
+        if (v := os.getenv("LOG_LEVEL")) is not None:
+            self.logging.level = v
+        if (v := os.getenv("LOG_FILE")) is not None:
+            self.logging.file_path = Path(v)
 
         # Watcher settings
-        if os.getenv("PROCESSOR_HOST"):
-            self.watcher.processor_host = os.getenv("PROCESSOR_HOST")
-
-        if os.getenv("PROCESSOR_USER"):
-            self.watcher.processor_user = os.getenv("PROCESSOR_USER")
-
-        if os.getenv("PROCESSOR_VIDEO_PATH"):
-            self.watcher.processor_video_path = Path(os.getenv("PROCESSOR_VIDEO_PATH"))
-
-        if os.getenv("SSH_KEY_PATH"):
-            self.watcher.ssh_key_path = Path(os.getenv("SSH_KEY_PATH"))
+        if (v := os.getenv("PROCESSOR_HOST")) is not None:
+            self.watcher.processor_host = v
+        if (v := os.getenv("PROCESSOR_USER")) is not None:
+            self.watcher.processor_user = v
+        if (v := os.getenv("PROCESSOR_VIDEO_PATH")) is not None:
+            self.watcher.processor_video_path = Path(v)
+        if (v := os.getenv("SSH_KEY_PATH")) is not None:
+            self.watcher.ssh_key_path = Path(v)
 
         # Notification settings
-        if os.getenv("NOTIFICATION_SMTP_HOST"):
-            self.notifications.smtp_host = os.getenv("NOTIFICATION_SMTP_HOST")
-        if os.getenv("NOTIFICATION_SMTP_PORT"):
-            self.notifications.smtp_port = int(os.getenv("NOTIFICATION_SMTP_PORT"))
-        if os.getenv("NOTIFICATION_SMTP_USER"):
-            self.notifications.smtp_user = os.getenv("NOTIFICATION_SMTP_USER")
-        if os.getenv("NOTIFICATION_SMTP_PASSWORD"):
-            self.notifications.smtp_password = os.getenv("NOTIFICATION_SMTP_PASSWORD")
-        if os.getenv("NOTIFICATION_EMAIL_FROM"):
-            self.notifications.email_from = os.getenv("NOTIFICATION_EMAIL_FROM")
-        if os.getenv("NOTIFICATION_EMAIL_TO"):
-            self.notifications.email_to = os.getenv("NOTIFICATION_EMAIL_TO")
-        if os.getenv("NOTIFICATION_PUSHBULLET_API_KEY"):
-            self.notifications.pushbullet_api_key = os.getenv("NOTIFICATION_PUSHBULLET_API_KEY")
-        if os.getenv("NOTIFICATION_WEBHOOK_URL"):
-            self.notifications.webhook_url = os.getenv("NOTIFICATION_WEBHOOK_URL")
+        if (v := os.getenv("NOTIFICATION_SMTP_HOST")) is not None:
+            self.notifications.smtp_host = v
+        if (v := os.getenv("NOTIFICATION_SMTP_PORT")) is not None:
+            self.notifications.smtp_port = int(v)
+        if (v := os.getenv("NOTIFICATION_SMTP_USER")) is not None:
+            self.notifications.smtp_user = v
+        if (v := os.getenv("NOTIFICATION_SMTP_PASSWORD")) is not None:
+            self.notifications.smtp_password = v
+        if (v := os.getenv("NOTIFICATION_EMAIL_FROM")) is not None:
+            self.notifications.email_from = v
+        if (v := os.getenv("NOTIFICATION_EMAIL_TO")) is not None:
+            self.notifications.email_to = v
+        if (v := os.getenv("NOTIFICATION_PUSHBULLET_API_KEY")) is not None:
+            self.notifications.pushbullet_api_key = v
+        if (v := os.getenv("NOTIFICATION_WEBHOOK_URL")) is not None:
+            self.notifications.webhook_url = v
     
     @classmethod
     def from_file(cls, config_path: Path) -> "Settings":
@@ -232,7 +235,15 @@ class Settings:
         return settings
     
     def _update_from_dict(self, config_data: dict):
-        """Update settings from a dictionary."""
+        """Update settings from a dictionary.
+
+        Logs a warning for any unrecognised top-level section so that typos in
+        the config file surface immediately rather than silently being ignored.
+        """
+        for key in config_data:
+            if key not in _KNOWN_SECTIONS:
+                _logger.warning("Unrecognised config section '%s' — check for typos", key)
+
         # Storage settings
         if "storage" in config_data:
             storage_data = config_data["storage"]
@@ -432,5 +443,18 @@ class Settings:
         valid_log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if self.logging.level not in valid_log_levels:
             errors.append(f"Log level must be one of: {valid_log_levels}")
+
+        # Check watcher settings (Drive Pi)
+        if self.watcher.poll_interval < 1:
+            errors.append("watcher.poll_interval must be at least 1 second")
+        if self.watcher.settle_seconds < 0:
+            errors.append("watcher.settle_seconds must be 0 or greater")
+        if self.watcher.rsync_timeout < 1:
+            errors.append("watcher.rsync_timeout must be at least 1 second")
+        if not (1 <= self.storage.virtual_drive_size_gb <= 256):
+            errors.append(
+                f"storage.virtual_drive_size_gb must be between 1 and 256 "
+                f"(got {self.storage.virtual_drive_size_gb})"
+            )
 
         return errors

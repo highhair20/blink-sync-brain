@@ -8,8 +8,21 @@ SIZE_MB=32768
 echo "Creating virtual storage at ${DRIVE_IMG} (${SIZE_MB} MB)..."
 
 mkdir -p "${STORAGE_DIR}"
-# Use the non-root user who invoked sudo, not the hardcoded 'pi' username
-OWNER="${SUDO_USER:-pi}"
+
+# Determine the non-root owner for the storage directory.
+# SUDO_USER is set when the script is run via sudo; fall back to 'pi' only
+# if that user actually exists, otherwise fail fast with a clear message.
+if [[ -n "${SUDO_USER:-}" ]]; then
+    OWNER="${SUDO_USER}"
+elif id pi &>/dev/null; then
+    OWNER="pi"
+else
+    echo "ERROR: Cannot determine storage directory owner."
+    echo "  Run this script via sudo: sudo $0"
+    echo "  Or run as the non-root user who owns the Pi."
+    exit 1
+fi
+
 chown "${OWNER}:${OWNER}" "${STORAGE_DIR}"
 chmod 755 "${STORAGE_DIR}"
 

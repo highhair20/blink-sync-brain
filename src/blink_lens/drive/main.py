@@ -32,12 +32,15 @@ def _configure_logging() -> None:
 
 def _format_status(status: Dict[str, Any]) -> str:
     """Format the gadget status dict as a human-readable string."""
-    drive_gb = status["drive_size"] / (1024 ** 3) if status["drive_size"] else 0
+    if status["drive_size"]:
+        drive_str = f"{status['drive_size'] / (1024 ** 3):.1f} GB ({status['virtual_drive_path']})"
+    else:
+        drive_str = f"not created yet — run: sudo blink-drive start ({status['virtual_drive_path']})"
     return (
         f"Storage Mode:  {'ACTIVE' if status['active'] else 'INACTIVE'}\n"
         f"USB Connected: {'YES' if status['connected'] else 'NO'}\n"
         f"Configured:    {'YES' if status['configured'] else 'NO'}\n"
-        f"Virtual Drive: {drive_gb:.1f} GB ({status['virtual_drive_path']})"
+        f"Virtual Drive: {drive_str}"
     )
 
 

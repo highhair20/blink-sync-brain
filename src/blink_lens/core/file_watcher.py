@@ -69,7 +69,8 @@ class FileWatcher:
             if not watcher.ssh_key_path.exists():
                 raise FileNotFoundError(
                     f"SSH key not found: {watcher.ssh_key_path}. "
-                    "Ensure the key exists and is readable before starting the watcher."
+                    "Have you run configure.sh yet? "
+                    "If so, check that ssh_key_path in drive.yaml matches the actual key location."
                 )
             mode = watcher.ssh_key_path.stat().st_mode
             if mode & 0o077:
@@ -152,7 +153,18 @@ class FileWatcher:
 
         self.logger.info("Scanning virtual drive for new clips")
 
-        if not await self._mount_shadow(drive_path, mount_point):
+        # The outer try/finally ensures _unmount_shadow is always called — even if
+        # _mount_shadow raises asyncio.TimeoutError partway through attaching a loop
+        # device.  Without this, a timed-out losetup call could leave an orphaned
+        # loop device that accumulates across scan cycles.
+        try:
+            mounted = await self._mount_shadow(drive_path, mount_point)
+        except Exception as e:
+            self.logger.error("Mount raised unexpected error — cleaning up", error=str(e))
+            await self._unmount_shadow()
+            return
+
+        if not mounted:
             self.logger.warning(
                 "Could not mount virtual drive — clips will be retried on next scan. "
                 "Most likely causes: (1) blink-drive is not running as root, "
@@ -185,8 +197,8 @@ class FileWatcher:
     def _find_new_files(self, mount_point: Path) -> list:
         """Return video files on the mount that have not yet been successfully pushed."""
         new_files = []
-        for ext in VIDEO_EXTENSIONS:
-            for file_path in mount_point.rglob(f"*{ext}"):
+        for file_path in mount_point.rglob("*"):
+            if file_path.suffix.lower() in VIDEO_EXTENSIONS:
                 rel = str(file_path.relative_to(mount_point))
                 if rel not in self._pushed_files:
                     new_files.append(file_path)

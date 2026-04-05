@@ -162,6 +162,36 @@ class TestSettingsValidation:
         errors = s.validate()
         assert any("log level" in e.lower() for e in errors)
 
+    def test_invalid_poll_interval(self):
+        s = Settings()
+        s.watcher.poll_interval = 0
+        errors = s.validate()
+        assert any("poll_interval" in e for e in errors)
+
+    def test_invalid_settle_seconds(self):
+        s = Settings()
+        s.watcher.settle_seconds = -1
+        errors = s.validate()
+        assert any("settle_seconds" in e for e in errors)
+
+    def test_invalid_rsync_timeout(self):
+        s = Settings()
+        s.watcher.rsync_timeout = 0
+        errors = s.validate()
+        assert any("rsync_timeout" in e for e in errors)
+
+    def test_invalid_virtual_drive_size_too_large(self):
+        s = Settings()
+        s.storage.virtual_drive_size_gb = 512
+        errors = s.validate()
+        assert any("virtual_drive_size_gb" in e for e in errors)
+
+    def test_invalid_virtual_drive_size_zero(self):
+        s = Settings()
+        s.storage.virtual_drive_size_gb = 0
+        errors = s.validate()
+        assert any("virtual_drive_size_gb" in e for e in errors)
+
 
 class TestSettingsToDict:
     def test_to_dict_round_trip(self, tmp_path):

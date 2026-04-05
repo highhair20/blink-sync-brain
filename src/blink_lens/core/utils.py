@@ -50,5 +50,8 @@ async def run_command(cmd: List[str]) -> subprocess.CompletedProcess:
         await process.communicate()
         raise
     return subprocess.CompletedProcess(
-        cmd, process.returncode, stdout.decode(), stderr.decode()
+        cmd,
+        process.returncode,
+        stdout.decode(errors="replace"),
+        stderr.decode(errors="replace"),
     )
