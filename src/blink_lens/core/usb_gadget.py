@@ -48,11 +48,21 @@ class USBGadgetManager:
         """
         Start Storage Mode: load g_mass_storage so Blink can write to the virtual drive.
 
+        Creates the virtual drive image if it does not already exist.
+
         Returns:
             bool: True if started successfully, False otherwise
         """
         try:
             self.logger.info("Starting USB gadget (Storage Mode)")
+
+            if not self.virtual_drive_path.exists():
+                self.logger.info("Virtual drive image not found, creating it")
+                if not await self._create_virtual_drive():
+                    return False
+
+            self.is_configured = True
+
             result = await self._run_command(
                 ["sudo", str(self._scripts_dir / "start_storage_mode.sh")]
             )

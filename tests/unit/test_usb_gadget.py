@@ -40,20 +40,44 @@ class TestInit:
 
 
 class TestStartUsbGadget:
-    async def test_returns_true_on_success(self, manager: USBGadgetManager):
+    async def test_returns_true_when_drive_exists(self, manager: USBGadgetManager, tmp_path: Path, settings: Settings):
+        img = tmp_path / "virtual_drive.img"
+        img.write_bytes(b"")
+        settings.storage.virtual_drive_path = img
+        manager.virtual_drive_path = img
+
         with patch.object(manager, "_run_command", new_callable=AsyncMock, return_value=_ok()):
             result = await manager.start_usb_gadget()
+
         assert result is True
         assert manager.is_active is True
+        assert manager.is_configured is True
+
+    async def test_creates_drive_when_missing(self, manager: USBGadgetManager):
+        # virtual_drive_path does not exist — should call _create_virtual_drive first
+        with patch.object(manager, "_create_virtual_drive", new_callable=AsyncMock, return_value=True) as mock_create:
+            with patch.object(manager, "_run_command", new_callable=AsyncMock, return_value=_ok()):
+                result = await manager.start_usb_gadget()
+        assert result is True
+        mock_create.assert_called_once()
+        assert manager.is_configured is True
+
+    async def test_returns_false_when_drive_creation_fails(self, manager: USBGadgetManager):
+        with patch.object(manager, "_create_virtual_drive", new_callable=AsyncMock, return_value=False):
+            result = await manager.start_usb_gadget()
+        assert result is False
+        assert manager.is_configured is False
+        assert manager.is_active is False
 
     async def test_returns_false_on_script_failure(self, manager: USBGadgetManager):
-        with patch.object(manager, "_run_command", new_callable=AsyncMock, return_value=_fail()):
-            result = await manager.start_usb_gadget()
+        with patch.object(manager, "_create_virtual_drive", new_callable=AsyncMock, return_value=True):
+            with patch.object(manager, "_run_command", new_callable=AsyncMock, return_value=_fail()):
+                result = await manager.start_usb_gadget()
         assert result is False
         assert manager.is_active is False
 
     async def test_returns_false_on_exception(self, manager: USBGadgetManager):
-        with patch.object(manager, "_run_command", new_callable=AsyncMock, side_effect=OSError("no such file")):
+        with patch.object(manager, "_create_virtual_drive", new_callable=AsyncMock, side_effect=OSError("no such file")):
             result = await manager.start_usb_gadget()
         assert result is False
 
@@ -88,7 +112,7 @@ class TestGetStatus:
         assert "virtual_drive_path" in status
         assert "drive_size" in status
         assert "connected" in status
-        assert "free_space" not in status  # removed
+        assert "free_space" not in status
 
     async def test_connected_reflects_lsmod(self, manager: USBGadgetManager):
         with patch.object(manager, "_get_drive_size", new_callable=AsyncMock, return_value=0):

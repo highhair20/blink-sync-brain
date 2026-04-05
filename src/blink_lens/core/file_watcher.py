@@ -38,18 +38,38 @@ class FileWatcher:
         self.logger = structlog.get_logger()
         self._running = False
         self._pushed_files: Set[str] = set()
+        self._failed_files: Set[str] = set()
         self._last_mtime: float = 0.0
         self._last_changed_at: float = 0.0
         self._pending_scan: bool = False
 
     async def start(self) -> None:
-        """Start watching for new clips."""
+        """Start watching for new clips.
+
+        Raises:
+            ValueError: If required configuration (processor_host) is missing.
+            FileNotFoundError: If the configured SSH key does not exist.
+        """
+        watcher = self.settings.watcher
+
+        if not watcher.processor_host:
+            raise ValueError(
+                "watcher.processor_host is not configured. "
+                "Set it in the config file or via the PROCESSOR_HOST environment variable."
+            )
+
+        if watcher.ssh_key_path and not watcher.ssh_key_path.exists():
+            raise FileNotFoundError(
+                f"SSH key not found: {watcher.ssh_key_path}. "
+                "Ensure the key exists and is readable before starting the watcher."
+            )
+
         self._running = True
         self._load_state()
         self.logger.info(
             "File watcher started",
             drive=str(self.settings.storage.virtual_drive_path),
-            processor=self.settings.watcher.processor_host,
+            processor=watcher.processor_host,
         )
         await self._watch_loop()
 
@@ -119,18 +139,30 @@ class FileWatcher:
             self.logger.info("New clips found", count=len(new_files))
 
             for file_path in new_files:
+                rel = str(file_path.relative_to(mount_point))
                 if await self._push_file(file_path):
-                    self._pushed_files.add(str(file_path.relative_to(mount_point)))
+                    self._pushed_files.add(rel)
+                    self._failed_files.discard(rel)
                     self._save_state()
+                else:
+                    self._failed_files.add(rel)
+                    self.logger.warning(
+                        "Push failed, will retry on next scan",
+                        file=file_path.name,
+                    )
         finally:
             await self._unmount_shadow()
 
     def _find_new_files(self, mount_point: Path) -> list:
-        """Return video files on the mount that have not yet been pushed."""
+        """Return video files on the mount that have not yet been successfully pushed.
+
+        Includes files that previously failed so they are retried on the next scan.
+        """
         new_files = []
         for ext in VIDEO_EXTENSIONS:
             for file_path in mount_point.rglob(f"*{ext}"):
-                if str(file_path.relative_to(mount_point)) not in self._pushed_files:
+                rel = str(file_path.relative_to(mount_point))
+                if rel not in self._pushed_files:
                     new_files.append(file_path)
         return sorted(new_files)
 
@@ -212,7 +244,12 @@ class FileWatcher:
             self.logger.error("Could not find loop device for image")
             return False
 
-        loop_dev = result.stdout.strip().splitlines()[0].split(":")[0]
+        first_line = result.stdout.strip().splitlines()[0]
+        parts = first_line.split(":")
+        loop_dev = parts[0].strip() if parts else ""
+        if not loop_dev.startswith("/"):
+            self.logger.error("Unexpected losetup output format", output=first_line)
+            return False
         partition = f"{loop_dev}p1"
 
         # Wait for the partition device node to appear
@@ -250,8 +287,9 @@ class FileWatcher:
         result = await self._run_command(["losetup", "-j", str(drive_path)])
         if result.returncode == 0 and result.stdout.strip():
             for line in result.stdout.strip().splitlines():
-                loop_dev = line.split(":")[0].strip()
-                await self._run_command(["losetup", "-d", loop_dev])
+                parts = line.split(":")
+                if parts and parts[0].strip():
+                    await self._run_command(["losetup", "-d", parts[0].strip()])
 
     # -------------------------------------------------------------------------
     # State persistence
