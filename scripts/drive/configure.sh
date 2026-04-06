@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Configure Pi #1 (blink-drive) after first reboot.
-# - Sets processor_host, processor_user, and ssh_key_path in drive.yaml
+# - Writes PROCESSOR_HOST, PROCESSOR_USER, and SSH_KEY_PATH to /etc/blink-lens/env
 # - Generates an SSH key and copies it to Pi #2
 #
 # Usage: sudo ./configure.sh <processor-ip> [processor-user]
@@ -25,72 +25,47 @@ fi
 
 PROCESSOR_IP="$1"
 PROCESSOR_USER="${2:-pi}"
-CONFIG="/opt/blink-lens/configs/drive.yaml"
 
 # Detect the actual non-root user (the one who ran sudo, or current user)
 PI_USER="${SUDO_USER:-$(id -un)}"
-
-# Update processor_host, processor_user, and ssh_key_path in drive.yaml.
-# All values are passed as command-line arguments to Python (never interpolated
-# into source) so there is no shell-injection risk regardless of input.
 SSH_KEY="/home/${PI_USER}/.ssh/id_ed25519"
+ENV_FILE="/etc/blink-lens/env"
 
-python3 - "$PROCESSOR_IP" "$PROCESSOR_USER" "$SSH_KEY" "$CONFIG" <<'PYEOF'
+# Validate inputs before writing anywhere
+python3 - "$PROCESSOR_IP" "$PROCESSOR_USER" <<'PYEOF'
 import re, sys
 
-ip           = sys.argv[1]
-proc_user    = sys.argv[2]
-ssh_key_path = sys.argv[3]
-path         = sys.argv[4]
+ip        = sys.argv[1]
+proc_user = sys.argv[2]
 
 if not re.match(r'^[a-zA-Z0-9.\-]+$', ip):
-    print(f"ERROR: Refusing to write unsafe processor IP: {ip!r}", file=sys.stderr)
+    print(f"ERROR: Refusing to use unsafe processor IP: {ip!r}", file=sys.stderr)
     sys.exit(1)
 
 if not re.match(r'^[a-zA-Z0-9_\-]+$', proc_user):
-    print(f"ERROR: Refusing to write unsafe processor username: {proc_user!r}", file=sys.stderr)
+    print(f"ERROR: Refusing to use unsafe processor username: {proc_user!r}", file=sys.stderr)
     sys.exit(1)
-
-try:
-    lines = open(path).readlines()
-except FileNotFoundError:
-    print(f"ERROR: Config file not found: {path}", file=sys.stderr)
-    sys.exit(1)
-
-def replace_value(lines, key, value):
-    updated = []
-    found = False
-    for line in lines:
-        if re.match(rf'\s*{re.escape(key)}:', line):
-            comment_match = re.search(r'([ \t]*#.*)$', line)
-            trailing = comment_match.group(1) if comment_match else ""
-            updated.append(f'{key}: "{value}"{trailing}\n')
-            found = True
-        else:
-            updated.append(line)
-    return updated, found
-
-lines, found = replace_value(lines, "processor_host", ip)
-if not found:
-    print(f"ERROR: 'processor_host' key not found in {path}", file=sys.stderr)
-    sys.exit(1)
-
-lines, _ = replace_value(lines, "processor_user", proc_user)
-lines, _ = replace_value(lines, "ssh_key_path", ssh_key_path)
-
-open(path, 'w').writelines(lines)
 PYEOF
 
-echo "Updated drive.yaml:"
-echo "  processor_host: ${PROCESSOR_IP}"
-echo "  processor_user: ${PROCESSOR_USER}"
-echo "  ssh_key_path:   ${SSH_KEY}"
+# Write configuration to /etc/blink-lens/env (not tracked by git)
+mkdir -p /etc/blink-lens
+cat > "${ENV_FILE}" <<EOF
+PROCESSOR_HOST=${PROCESSOR_IP}
+PROCESSOR_USER=${PROCESSOR_USER}
+SSH_KEY_PATH=${SSH_KEY}
+EOF
+chmod 600 "${ENV_FILE}"
+
+echo "Configuration written to ${ENV_FILE}:"
+echo "  PROCESSOR_HOST=${PROCESSOR_IP}"
+echo "  PROCESSOR_USER=${PROCESSOR_USER}"
+echo "  SSH_KEY_PATH=${SSH_KEY}"
 
 # Generate SSH key if not already present
 SSH_DIR="/home/${PI_USER}/.ssh"
-sudo mkdir -p "${SSH_DIR}"
-sudo chown "${PI_USER}:${PI_USER}" "${SSH_DIR}"
-sudo chmod 700 "${SSH_DIR}"
+mkdir -p "${SSH_DIR}"
+chown "${PI_USER}:${PI_USER}" "${SSH_DIR}"
+chmod 700 "${SSH_DIR}"
 
 if [[ ! -f "${SSH_KEY}" ]]; then
     sudo -u "${PI_USER}" ssh-keygen -t ed25519 -f "${SSH_KEY}" -N ""
@@ -126,4 +101,4 @@ echo ""
 echo "Done. Pi #1 is configured to push clips to ${PROCESSOR_USER}@${PROCESSOR_IP}."
 echo "Next step:"
 echo "  If install.sh has not been run yet: sudo /opt/blink-lens/scripts/drive/install.sh"
-echo "  If install.sh is already done:      sudo reboot"
+echo "  If install.sh is already done:      sudo systemctl restart blink-watcher"

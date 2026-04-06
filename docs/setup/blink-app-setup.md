@@ -53,7 +53,7 @@ Run configure with Pi #2's IP:
 sudo /opt/blink-lens/scripts/drive/configure.sh <pi2-ip>
 ```
 
-You will be prompted for Pi #2's password once to copy the SSH key.
+This writes the connection details to `/etc/blink-lens/env` (not tracked by git) and copies the SSH key to Pi #2. You will be prompted for Pi #2's password once.
 
 ## Step 4: Pi #1 — Install and Reboot
 
@@ -62,6 +62,11 @@ Virtual drive image creation (32 GB) takes several minutes — run in `screen` s
 ```bash
 screen -S install
 sudo /opt/blink-lens/scripts/drive/install.sh
+```
+
+Then reboot:
+
+```bash
 sudo reboot
 ```
 

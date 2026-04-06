@@ -52,6 +52,13 @@ if [[ -d "${VENV}" ]]; then
     rm -rf "${VENV}"
 fi
 
+# ── Remove configuration env file ────────────────────────────────────────────
+if [[ -f /etc/blink-lens/env ]]; then
+    echo "Removing /etc/blink-lens/env..."
+    rm /etc/blink-lens/env
+fi
+rmdir --ignore-fail-on-non-empty /etc/blink-lens 2>/dev/null || true
+
 # ── Reverse USB gadget boot config ───────────────────────────────────────────
 CONFIG="/boot/firmware/config.txt"
 if [[ -f "${CONFIG}" ]]; then

@@ -60,12 +60,12 @@ except Exception:
 echo ""
 
 # Post-install: warn if configure.sh hasn't been run yet.
-# blink-watcher will fail on reboot if processor_host is still empty.
-if grep -q 'processor_host: ""' "${REPO_DIR}/configs/drive.yaml" 2>/dev/null; then
+# blink-watcher will fail on reboot if PROCESSOR_HOST is not set.
+if [[ ! -f /etc/blink-lens/env ]]; then
     echo "WARNING: Pi #2 is not configured yet."
     echo "  Run configure.sh before rebooting, otherwise blink-watcher will fail:"
     echo ""
-    echo "  /opt/blink-lens/scripts/drive/configure.sh <pi2-ip>"
+    echo "  sudo /opt/blink-lens/scripts/drive/configure.sh <pi2-ip>"
     echo ""
     echo "  Then reboot: sudo reboot"
 else

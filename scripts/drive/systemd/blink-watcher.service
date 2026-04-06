@@ -8,6 +8,7 @@ StartLimitBurst=3
 
 [Service]
 Type=simple
+EnvironmentFile=-/etc/blink-lens/env
 ExecStart=/usr/local/bin/blink-drive watch --config /opt/blink-lens/configs/drive.yaml
 ExecStopPost=/opt/blink-lens/scripts/drive/cleanup-shadow-mount.sh
 Restart=on-failure
